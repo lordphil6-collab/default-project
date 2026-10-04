@@ -1,0 +1,55 @@
+version: "3.9"
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-quote_desk}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minio12345}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+  api:
+    build: ../backend
+    env_file: ../.env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/quote_desk
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT: http://minio:9000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+      - minio
+  worker:
+    build: ../backend
+    command: python -m worker.main
+    env_file: ../.env.example
+    depends_on:
+      - db
+      - redis
+volumes:
+  pgdata:
+  miniodata:

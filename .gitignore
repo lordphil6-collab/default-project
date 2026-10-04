@@ -1,3 +1,16 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Builds
+frontend/.next/
+frontend/out/
+frontend/build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
 # Python
 __pycache__/
 *.py[cod]
@@ -19,6 +32,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.ruff_cache/
 
 # Virtual environments
 venv/
@@ -41,6 +56,7 @@ desktop.ini
 # Environment
 .env
 .env.local
+.pg_url
 
 # Testing
 .pytest_cache/

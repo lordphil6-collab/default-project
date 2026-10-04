@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Quotation Desk — Design System Preview</title><style>
+:root{--slate-900:#0f172a;--slate-600:#475569;--slate-200:#e2e8f0;--slate-100:#f1f5f9;--indigo:#4f46e5;--indigo-d:#4338ca;--amber:#f59e0b;--green:#16a34a;--red:#dc2626;--card:#ffffff;--radius:12px}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--slate-100);color:var(--slate-900)}
+.top{background:#fff;border-bottom:1px solid var(--slate-200);padding:12px 20px;display:flex;gap:12px;align-items:center;position:sticky;top:0}
+.top input{flex:1;max-width:420px;padding:8px 12px;border:1px solid var(--slate-200);border-radius:8px}
+.layout{display:grid;grid-template-columns:220px 1fr 320px;gap:16px;padding:16px;max-width:1280px;margin:0 auto}
+.nav,.main,.side{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--slate-200);border-radius:var(--radius);padding:14px}
+.nav a{padding:8px 10px;border-radius:8px;color:var(--slate-600);text-decoration:none;font-size:14px}.nav a.on{background:#eef2ff;color:var(--indigo);font-weight:600}
+.btn{background:var(--indigo);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.btn.sec{background:#fff;color:var(--indigo);border:1px solid var(--indigo)}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;background:var(--slate-200)}.pill.amber{background:#fef3c7;color:#92400e}.pill.green{background:#dcfce7;color:#166534}.pill.red{background:#fee2e2;color:#991b1b}.pill.indigo{background:#e0e7ff;color:#3730a3}
+.muted{color:var(--slate-600);font-size:13px}.mono{font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid var(--slate-200);padding:8px;text-align:left}th{background:#1f3864;color:#fff}.unk{background:#fef9c3;font-weight:700}
+.timeline{border-left:2px solid var(--slate-200);margin-left:6px;padding-left:12px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.conf{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px}.conf div{border-radius:8px;padding:8px;border:1px solid var(--slate-200)}.conf b{display:block}
+.tokens{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.swatch{height:44px;border-radius:8px;border:1px solid var(--slate-200)}
+h2{font-size:15px;margin:4px 0}h3{font-size:13px;margin:8px 0 4px;color:var(--slate-600)}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.nav{flex-direction:row;flex-wrap:wrap}}
+</style></head><body>
+<div class="top"><b>AI Quotation Desk</b><input placeholder="Search situations, customers, RFQs…"><span class="pill indigo">Trial: 22 days left</span><span class="pill green">CSR</span></div>
+<div class="layout">
+<div class="nav card"><a class="on" href="#">Dashboard</a><a href="#">Situations</a><a href="#">Inbox</a><a href="#">RFQs</a><a href="#">Comparisons</a><a href="#">Quotes</a><a href="#">Follow-ups</a><a href="#">Exceptions</a>
+<div><h3>Tokens</h3><div class="tokens"><div><div class="swatch" style="background:#0f172a"></div><div class="muted">slate-900</div></div><div><div class="swatch" style="background:#4f46e5"></div><div class="muted">indigo</div></div><div><div class="swatch" style="background:#f59e0b"></div><div class="muted">amber</div></div><div><div class="swatch" style="background:#16a34a"></div><div class="muted">green</div></div><div><div class="swatch" style="background:#dc2626"></div><div class="muted">red</div></div></div><p class="muted">Type Inter 12/14/16 • tabular-nums • radius 8/12 • 4pt spacing</p></div>
+</div>
+<div class="main">
+<div class="card"><h2>Today — What needs attention?</h2><p><span class="pill red">3 Urgent</span> <span class="pill amber">7 Follow-ups</span> <span class="pill indigo">4 Pending agents</span> <span class="pill amber">2 Awaiting approval</span> <span class="pill red">2 Exceptions</span></p><p class="muted">Prioritised queue, not just info. Click a row to open Situation.</p></div>
+<div class="card"><h2>SIT-1042 — 20ft China → Lagos <span class="pill amber">RFQ In Progress</span> <span class="pill amber">Medium confidence</span></h2><p class="muted">Summary: Import freight, 1×20ft. Missing: weight, pickup, incoterm. Next: send RFQ to 3 agents.</p><div class="timeline"><div><b>Customer WA:</b> “Need quote for one 20ft China to Lagos”</div><div><b>AI extract:</b> origin China ✓ • dest Lagos ✓ • 20ft ✓ • <span class="pill amber">missing weight/dims</span></div><div><b>RFQ sent:</b> Agent A/B/C • B viewed, A opened</div></div><p style="margin-top:10px"><button class="btn">Approve RFQ send</button> <button class="btn sec">Edit clarification</button></p></div>
+<div class="card"><h2>Comparison — Included / Excluded / Unknown</h2><table><tr><th>Parameter</th><th>Agent A</th><th>Agent B</th><th>Agent C</th></tr><tr><td>Ocean freight</td><td class="mono">$1,850</td><td class="mono">$1,720</td><td class="mono">$1,900</td></tr><tr><td>Destination</td><td class="mono">$650</td><td class="unk">Unknown</td><td class="mono">$580</td></tr><tr><td>Transit</td><td>35d</td><td>32d</td><td>38d</td></tr><tr><td>Total</td><td class="mono"><b>$2,920</b></td><td><b>Cannot compare</b></td><td class="mono">$2,870?</td></tr></table><p class="muted"><b>Recommendation:</b> Agent A — complete costs + competitive total. Agent B cheaper headline but destination Unknown. Unknown ≠ zero.</p></div>
+</div>
+<div class="side">
+<div class="card"><h2>Field confidence</h2><div class="conf"><div><b>Confirmed</b>origin, destination, 20ft</div><div><b>Assumed</b>ocean freight</div><div><b>Missing</b>weight, pickup</div></div></div>
+<div class="card"><h2>Approval — L4 gate</h2><p>$2,920 + 12% = <b class="mono">$3,270.40</b></p><p class="muted">Human approval required before send. No auto-commit.</p><p><button class="btn">Approve & send</button> <button class="btn sec">Override</button></p></div>
+<div class="card"><h2>Primitives</h2><p><button class="btn">Primary</button> <button class="btn sec">Secondary</button></p><p><span class="pill">Draft</span> <span class="pill amber">Pending</span> <span class="pill green">Accepted</span> <span class="pill red">Expired</span></p><p class="muted">Drawer / Modal / Toast / Data Table in Storybook. WCAG AA, keyboard approval flow.</p></div>
+</div>
+</div>
+</body></html>

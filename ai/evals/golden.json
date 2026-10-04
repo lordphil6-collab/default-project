@@ -1,0 +1,32 @@
+{
+  "extraction": [
+    {
+      "body": "Please give me a quote for 5 cartons from Guangzhou to Lagos.",
+      "origin": "Guangzhou",
+      "destination": "Lagos",
+      "quantity": "5 cartons",
+      "must_be_missing": ["weight", "dimensions", "mode"]
+    },
+    {
+      "body": "We need a quote for one 20 foot container from China to Lagos.",
+      "origin": "China",
+      "destination": "Lagos",
+      "must_be_missing": ["weight"]
+    },
+    {
+      "body": "Air freight 500kg general cargo from Lagos to London, delivery in 5 days.",
+      "origin": "Lagos",
+      "destination": "London",
+      "must_be_missing": ["dimensions"]
+    }
+  ],
+  "comparison": {
+    "quotes": [
+      {"agent": "Agent A", "freight": 1850, "origin": 420, "destination": 650, "validity": 7, "transit": 35},
+      {"agent": "Agent B", "freight": 1720, "origin": 600, "destination": null, "validity": 5, "transit": 32},
+      {"agent": "Agent C", "freight": 1900, "origin": 390, "destination": 580, "validity": 10, "transit": 38, "other": 180}
+    ],
+    "expected_winner": "Agent A",
+    "expected_confidence": ["Medium", "Low"]
+  }
+}
