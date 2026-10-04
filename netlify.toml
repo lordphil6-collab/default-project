@@ -1,0 +1,15 @@
+# Netlify deploys the Next.js app in frontend/ (monorepo root has no site of its own).
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Required at runtime (Netlify dashboard > Site settings > Environment variables):
+#   DATABASE_URL            Postgres URL (e.g. Neon/Supabase), plain postgresql:// form
+#   BETTER_AUTH_SECRET      32+ char random secret
+#   BETTER_AUTH_URL         https://<your-site>.netlify.app
+#   NEXT_PUBLIC_BETTER_AUTH_URL  same as above
+# Optional OAuth: GOOGLE_CLIENT_ID/SECRET, MICROSOFT_CLIENT_ID/SECRET
