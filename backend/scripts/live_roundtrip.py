@@ -9,7 +9,7 @@ import time
 
 import httpx
 
-BASE = "http://localhost:3000"
+BASE = os.getenv("WEB_BASE", "http://localhost:3000")
 API = os.getenv("API_BASE", "http://localhost:8000")
 
 

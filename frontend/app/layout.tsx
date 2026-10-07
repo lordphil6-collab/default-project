@@ -1,4 +1,5 @@
 import "./globals.css";
+import { SessionBar, TrialPill } from "../components/session-bar";
 
 export const metadata = { title: "AI Quotation Desk", description: "Phase 1 design system" };
 
@@ -21,8 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="topbar">
           <b>AI Quotation Desk</b>
           <input placeholder="Search situations, customers, RFQs…" aria-label="Global search" />
-          <span className="pill indigo">Trial: 22 days left</span>
-          <span className="pill green">CSR</span>
+          <TrialPill />
+          <SessionBar />
         </div>
         <div className="shell">
           <nav className="card nav" aria-label="Primary">
