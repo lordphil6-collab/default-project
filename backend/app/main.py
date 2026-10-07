@@ -1,8 +1,26 @@
 """Quote Desk API - Phase 8: + auth hardening, audit trail, eval gate."""
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from .routers import dashboard, exceptions, followups, intake, quotations, quotes, rfqs, situations, understand
 
 app = FastAPI(title="AI Quotation Desk", version="0.8.0")
+
+# Browser UI calls this API cross-origin (different port/host), so preflights
+# must succeed. Same-origin scripts (httpx/curl) never noticed — the UI did.
+origins = [o.strip() for o in os.getenv(
+    "FRONTEND_URLS",
+    "http://localhost:3000,http://localhost:3001,http://localhost:3002,https://cslogisticsintelligence.netlify.app",
+).split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(intake.router, tags=["intake"])
 app.include_router(situations.router, tags=["situations"])
 app.include_router(understand.router, tags=["understanding"])
