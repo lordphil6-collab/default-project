@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { api, Situation } from "../../../lib/api";
+import { api, apiForm, Situation } from "../../../lib/api";
 import { ActionButton, Card, StatusPill } from "../../../components/primitives";
 
 type RFQ = { id: string; status: string; situation_id: string };
@@ -30,6 +30,8 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [ingest, setIngest] = useState<Record<string, { agent: string; body: string }>>({});
   const [markup, setMarkup] = useState({ quotation_id: "", kind: "percent", value: "12" });
   const [due, setDue] = useState("");
+  const [sendTo, setSendTo] = useState("");
+  const [sendChannel, setSendChannel] = useState("logged");
   const [matched, setMatched] = useState<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
@@ -174,6 +176,19 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <input
+                aria-label="Quotation file"
+                type="file"
+                accept=".pdf,.xlsx,.xlsm,.docx,.txt,.csv"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const form = new FormData();
+                  form.append("agent", ingest[rfq.id]?.agent || "Agent");
+                  form.append("file", f);
+                  act(`up-${rfq.id}`, `File ${f.name} ingested`, () => apiForm(`/rfqs/${rfq.id}/quotations/upload`, form));
+                }}
+              />
+              <input
                 aria-label="Agent name"
                 placeholder="Agent name"
                 value={ingest[rfq.id]?.agent || ""}
@@ -241,11 +256,19 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             <ActionButton busy={busy === `ap-${q.id}`} secondary onClick={() => act(`ap-${q.id}`, "Quote approved — needs Manager role", () => api(`/customer-quotes/${q.id}/approve`, { method: "POST" }))}>
               Approve (Manager)
             </ActionButton>{" "}
-            <ActionButton busy={busy === `se-${q.id}`} secondary onClick={() => act(`se-${q.id}`, "Quote sent", () => api(`/customer-quotes/${q.id}/send`, { method: "POST" }))}>
+            <ActionButton busy={busy === `se-${q.id}`} secondary onClick={() => act(`se-${q.id}`, `Quote sent via ${sendChannel}`, () => api(`/customer-quotes/${q.id}/send`, { method: "POST", body: JSON.stringify({ channel: sendChannel, to: sendTo }) }))}>
               Send
             </ActionButton>
           </p>
         ))}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <select aria-label="Delivery channel" value={sendChannel} onChange={(e) => setSendChannel(e.target.value)}>
+            <option value="logged">record only</option>
+            <option value="email">email (SMTP)</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+          <input aria-label="Send to" placeholder="email or phone (for email/WhatsApp)" style={{ minWidth: 220 }} value={sendTo} onChange={(e) => setSendTo(e.target.value)} />
+        </div>
       </Card>
 
       <Card title={`Follow-ups (${fups.length})`}>

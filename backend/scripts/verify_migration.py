@@ -25,7 +25,8 @@ print("TABLES:", tables)
 expected = {
     "organizations", "users", "customers", "situations", "conversations", "messages",
     "rfqs", "agent_quotations", "customer_quotations", "follow_ups", "exceptions",
-    "plans", "entitlements", "audit_log", "alembic_version",
+    "plans", "entitlements", "audit_log", "alembic_version", "agents", "rfq_recipients",
+    "markup_rules",
 }
 assert expected.issubset(set(tables)), expected - set(tables)
 

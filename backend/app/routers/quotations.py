@@ -1,11 +1,12 @@
 """Quotation ingest + comparison endpoints — org-scoped."""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import CurrentUser, get_current_user
 from ..models import AgentQuotation, RFQ
 from ..services import quotation as q
+from ..services.parse_files import extract_text
 from .intake import _session
 
 router = APIRouter()
@@ -28,6 +29,21 @@ class IngestOut(BaseModel):
     id: str
     total_identifiable: float | None
     missing: list[str]
+
+
+@router.post("/rfqs/{rfq_id}/quotations/upload", response_model=IngestOut)
+async def ingest_upload(
+    rfq_id: str, agent: str = Form(...), file: UploadFile = File(...),
+    user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session),
+):
+    data = await file.read()
+    try:
+        text = extract_text(file.filename or "", file.content_type or "", data)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="no readable text in file")
+    return await ingest(rfq_id, IngestIn(agent=agent, body_text=text[:8000]), user, s)
 
 
 @router.post("/rfqs/{rfq_id}/quotations", response_model=IngestOut)

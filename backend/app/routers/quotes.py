@@ -123,10 +123,18 @@ async def approve_quote(
                     markup_amount=q.markup_amount, final_price=q.final_price)
 
 
-@router.post("/customer-quotes/{qid}/send", response_model=QuoteOut)
+class SendIn(BaseModel):
+    channel: str = "logged"  # email|whatsapp|logged (logged = record only)
+    to: str = ""
+
+
+@router.post("/customer-quotes/{qid}/send")
 async def send_quote(
-    qid: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)
+    qid: str, payload: SendIn | None = None, user: CurrentUser = Depends(get_current_user),
+    s: AsyncSession = Depends(_session),
 ):
+    from ..services import notify as n
+
     q = (
         (await s.execute(select(CustomerQuotation).where(
             CustomerQuotation.id == qid, CustomerQuotation.org_id == user.org_id)))
@@ -138,11 +146,25 @@ async def send_quote(
     if q.status != "Approved":
         # L4 gate: binding send blocked without approval
         raise HTTPException(status_code=409, detail="Send blocked: quote needs approval first")
+    channel = (payload.channel if payload else "logged").lower()
+    if channel not in ("email", "whatsapp", "logged"):
+        raise HTTPException(status_code=422, detail="channel must be email|whatsapp|logged")
+    to = (payload.to if payload else "") or ""
+    body = n.quote_text("customer", f"Situation {q.situation_id}", q.final_price, q.currency, q.validity_days, q.terms)
+    delivery: dict = {"channel": channel, "status": "logged-only", "detail": "recorded without provider send"}
+    if channel == "email":
+        if not to:
+            raise HTTPException(status_code=422, detail="to email address required")
+        delivery = n.send_email(to, f"Quotation {q.id[:8]}", body)
+    elif channel == "whatsapp":
+        if not to:
+            raise HTTPException(status_code=422, detail="to phone number required")
+        delivery = n.send_whatsapp(to, body)
     q.status = "Sent"
     await log_action(
         s, org_id=user.org_id, actor=user.user_id, action="quote.sent",
-        detail={"quote_id": q.id, "final_price": q.final_price},
+        detail={"quote_id": q.id, "final_price": q.final_price, "delivery": delivery},
     )
     await s.commit()
-    return QuoteOut(id=q.id, status=q.status, agent_total=q.agent_total,
-                    markup_amount=q.markup_amount, final_price=q.final_price)
+    return {"id": q.id, "status": q.status, "agent_total": q.agent_total,
+            "markup_amount": q.markup_amount, "final_price": q.final_price, "delivery": delivery}

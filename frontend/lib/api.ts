@@ -28,6 +28,19 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export async function apiForm<T>(path: string, form: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: await authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`${res.status}: ${detail.slice(0, 200)}`);
+  }
+  return (await res.json()) as T;
+}
+
 export type TodayCounts = {
   urgent: number;
   follow_ups: number;
