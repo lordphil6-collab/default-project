@@ -30,6 +30,8 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [ingest, setIngest] = useState<Record<string, { agent: string; body: string }>>({});
   const [markup, setMarkup] = useState({ quotation_id: "", kind: "percent", value: "12" });
   const [due, setDue] = useState("");
+  const [matched, setMatched] = useState<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>([]);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
 
   const refresh = useCallback(async () => {
@@ -111,10 +113,45 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             Create RFQ
           </ActionButton>
         </p>
+        <p>
+          <ActionButton busy={busy === "match"} secondary onClick={() => act("match", "Agents ranked by lane, service and capability", async () => {
+            setMatched(await api<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>(`/agents/match?situation_id=${sid}`));
+          })}>
+            Recommend agents
+          </ActionButton>
+        </p>
+        {matched.map((m) => (
+          <p key={m.agent_id} className="muted">
+            <input
+              type="checkbox"
+              aria-label={`Select ${m.agent}`}
+              checked={!!selected[m.agent_id]}
+              onChange={(e) => setSelected((s) => ({ ...s, [m.agent_id]: e.target.checked }))}
+            />{" "}
+            <b>{m.agent}</b> — score {m.score}: {m.reasons.join("; ")}
+          </p>
+        ))}
         {rfqs.map((rfq) => (
           <div key={rfq.id} className="card" style={{ marginBottom: 10 }}>
             <p>
               <b className="mono">{rfq.id.slice(0, 8)}</b> <StatusPill tone="indigo">{rfq.status}</StatusPill>{" "}
+              <ActionButton
+                busy={busy === `dist-${rfq.id}`}
+                secondary
+                onClick={() => {
+                  const ids = Object.keys(selected).filter((k) => selected[k]);
+                  if (ids.length === 0) {
+                    setError("Tick at least one recommended agent first.");
+                    return;
+                  }
+                  act(`dist-${rfq.id}`, `RFQ sent to ${ids.length} agent(s)`, async () => {
+                    await api(`/rfqs/${rfq.id}/recipients`, { method: "POST", body: JSON.stringify({ agent_ids: ids }) });
+                    await api(`/rfqs/${rfq.id}/send`, { method: "POST" });
+                  });
+                }}
+              >
+                Send to selected
+              </ActionButton>{" "}
               <ActionButton busy={busy === `cmp-${rfq.id}`} secondary onClick={() => act(`cmp-${rfq.id}`, "Comparison refreshed", async () => {
                 const cmp = await api<Compare>(`/rfqs/${rfq.id}/compare`);
                 setCompare((c) => ({ ...c, [rfq.id]: cmp }));

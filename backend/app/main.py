@@ -4,9 +4,10 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import dashboard, exceptions, followups, intake, quotations, quotes, rfqs, situations, understand
+from .routers import agents, dashboard, exceptions, followups, intake, quotations, quotes, rfqs, situations, understand
 
-app = FastAPI(title="AI Quotation Desk", version="0.8.0")
+app = FastAPI(title="AI Quotation Desk", version="0.9.0")
+app.include_router(agents.router, tags=["agents"])
 
 # Browser UI calls this API cross-origin (different port/host), so preflights
 # must succeed. Same-origin scripts (httpx/curl) never noticed — the UI did.

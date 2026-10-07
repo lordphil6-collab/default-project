@@ -78,6 +78,28 @@ class RFQ(Base):
     scope: Mapped[dict] = mapped_column(JSON, default=dict)  # Included/Excluded/Unknown
 
 
+class Agent(Base):
+    __tablename__ = "agents"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id"))
+    company: Mapped[str] = mapped_column(String(200), nullable=False)
+    routes: Mapped[list] = mapped_column(JSON, default=list)  # e.g. ["China>Lagos", "Guangzhou>Lagos"]
+    services: Mapped[list] = mapped_column(JSON, default=list)  # e.g. ["ocean", "air"]
+    capabilities: Mapped[list] = mapped_column(JSON, default=list)  # e.g. ["20ft", "cartons"]
+    contact: Mapped[str] = mapped_column(String(320), default="")
+    status: Mapped[str] = mapped_column(String(32), default="Active")  # Active|Inactive
+    notes: Mapped[str] = mapped_column(Text, default="")
+
+
+class RFQRecipient(Base):
+    __tablename__ = "rfq_recipients"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id"))
+    rfq_id: Mapped[str] = mapped_column(String(36), ForeignKey("rfqs.id"))
+    agent_id: Mapped[str] = mapped_column(String(36), ForeignKey("agents.id"))
+    status: Mapped[str] = mapped_column(String(32), default="Selected")  # Selected|Sent|Responded|Declined
+
+
 class AgentQuotation(Base):
     __tablename__ = "agent_quotations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)

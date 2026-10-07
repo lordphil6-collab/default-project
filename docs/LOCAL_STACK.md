@@ -1,10 +1,9 @@
 # Local stack runbook (no admin, no Docker)
 
-Fixed ports: Postgres 5433 · Redis 6379 · Next 3002 · API 8010.
+Fixed ports: Postgres 5433 · Redis 6379 · Next 3002 · API 8000.
 (`NEXT_DIST_DIR` isolates dev servers: two `next dev` on one `.next/` corrupt
-each other — Oct 7 incident. API moved 8000→8006→8010: unkillable phantom
-servers squat on old ports. CORS middleware added Oct 7 — without it every
-browser API call dies on preflight OPTIONS 405 while scripts/curl work fine.)
+each other — Oct 7 incident. Phantom pre-CORS squatters forced temporary
+8006/8010 detours; stale servers cleared, canonical 8000 restored.)
 `.pg_url` is stable (`postgresql+asyncpg://postgres:@127.0.0.1:5433/quote_desk`).
 
 Revive after reboot (each in its own terminal, from repo root):

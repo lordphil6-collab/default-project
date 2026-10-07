@@ -6,6 +6,7 @@ export const metadata = { title: "AI Quotation Desk", description: "Phase 1 desi
 const NAV = [
   ["Dashboard", "/", true],
   ["Situations", "/situations", false],
+  ["Agents", "/agents", false],
   ["Follow-ups", "/follow-ups", false],
   ["Exceptions", "/exceptions", false],
   ["Design system", "/design-system", false],

@@ -32,6 +32,17 @@ def main() -> None:
     ext = call("POST", f"/situations/{sit}/extract", {"body": "quote for 5 cartons from Guangzhou to Lagos"})
     assert "weight" in ext["missing"], ext
     rfq = call("POST", "/rfqs", {"situation_id": sit})["id"]
+    a1 = call("POST", "/agents", {"company": "Agent A", "routes": ["China>Lagos"],
+                                  "services": ["ocean"], "capabilities": ["20ft"]})["id"]
+    a2 = call("POST", "/agents", {"company": "Agent B", "routes": ["China>Lagos"],
+                                  "services": ["ocean", "air"], "capabilities": ["cartons"]})["id"]
+    ranked = call("GET", f"/agents/match?situation_id={sit}")
+    assert ranked[0]["reasons"], ranked
+    assert {a1, a2} >= {r["agent_id"] for r in ranked}, ranked
+    recips = call("POST", f"/rfqs/{rfq}/recipients", {"agent_ids": [a1, a2]})
+    assert len(recips["recipients"]) == 2, recips
+    sent = call("POST", f"/rfqs/{rfq}/send")
+    assert sent["status"] == "Sent" and sent["sent_to"] == 2, sent
     call("POST", f"/rfqs/{rfq}/quotations",
          {"agent": "Agent A", "body_text": "Ocean Freight $1,850\nOrigin Charges $420\nDestination Charges $650\nTransit 35 days\nValidity 7 days"})
     call("POST", f"/rfqs/{rfq}/quotations",
