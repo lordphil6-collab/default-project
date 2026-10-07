@@ -27,3 +27,8 @@ def test_parse_quote_text_keeps_unknown():
     parsed = q.parse_quote_text("Ocean Freight $1,720\nOrigin Charges $600\nDestination Charges Unknown\nTransit 32 days")
     assert parsed["charges"]["freight"] == 1720.0
     assert parsed["charges"]["destination"] is None
+
+
+def test_parse_other_charges_label():
+    parsed = q.parse_quote_text("Ocean Freight $1,900\nOther Charges $180")
+    assert parsed["charges"]["other"] == 180.0

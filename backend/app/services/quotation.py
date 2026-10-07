@@ -12,7 +12,7 @@ _CHARGE_LABELS = {
     "freight": re.compile(r"(ocean freight|air freight|freight|sea freight)", re.I),
     "origin": re.compile(r"(origin charge|origin|thc|lhc|pickup|export clearance)", re.I),
     "destination": re.compile(r"(destination charge|destination|delivery|ddc|import clearance)", re.I),
-    "other": re.compile(r"(handling|documentation|docs?|customs|surcharge|fuel|baf|pss)", re.I),
+    "other": re.compile(r"(other charges?|handling|documentation|docs?|customs|surcharge|fuel|baf|pss)", re.I),
 }
 _VALIDITY = re.compile(r"valid(?:ity)?\s*(?:for|of|:)?\s*(\d+)\s*days?", re.I)
 _TRANSIT = re.compile(r"transit\s*(?:time)?\s*(?:of|:)?\s*(\d+)\s*days?", re.I)

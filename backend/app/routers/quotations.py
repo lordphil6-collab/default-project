@@ -18,7 +18,7 @@ class IngestIn(BaseModel):
     freight: float | None = None
     origin_charges: float | None = None
     destination_charges: float | None = None  # None = Unknown
-    other_charges: float = 0.0
+    other_charges: float | None = None  # None = fall back to parsed text
     currency: str = "USD"
     validity_days: int = 0
     transit_days: int = 0
@@ -51,9 +51,11 @@ async def ingest(
         if payload.destination_charges is not None
         else (parsed["charges"]["destination"] if parsed else None)
     )
-    # body_text "Unknown" lines stay Unknown: parsed None + no override => None
-    if payload.body_text and parsed and "unknown" in payload.body_text.lower() and payload.destination_charges is None:
-        dest = None
+    other = (
+        payload.other_charges
+        if payload.other_charges is not None
+        else (parsed["charges"]["other"] if parsed else 0.0)
+    )
     row = AgentQuotation(
         org_id=user.org_id,
         rfq_id=rfq.id,
@@ -62,7 +64,7 @@ async def ingest(
         freight=freight or 0.0,
         origin_charges=origin,
         destination_charges=dest,
-        other_charges=payload.other_charges,
+        other_charges=other if other is not None else 0.0,
         validity_days=payload.validity_days or (parsed["validity_days"] if parsed else 0),
         transit_days=payload.transit_days or (parsed["transit_days"] if parsed else 0),
         raw_text=payload.body_text[:4000],
@@ -77,6 +79,26 @@ async def ingest(
         rfq.status = "Partial Responses"
     await s.commit()
     return IngestOut(id=row.id, total_identifiable=total, missing=missing)
+
+
+@router.get("/rfqs/{rfq_id}/quotations")
+async def list_quotations(rfq_id: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
+    rfq = (
+        (await s.execute(select(RFQ).where(RFQ.id == rfq_id, RFQ.org_id == user.org_id))).scalars().first()
+    )
+    if not rfq:
+        raise HTTPException(status_code=404, detail="RFQ not found in org")
+    rows = (
+        (await s.execute(select(AgentQuotation).where(AgentQuotation.rfq_id == rfq.id))).scalars().all()
+    )
+    out = []
+    for r in rows:
+        charges = {"freight": r.freight, "origin": r.origin_charges,
+                   "destination": r.destination_charges, "other": r.other_charges}
+        out.append({"id": r.id, "agent": r.agent, "currency": r.currency, "charges": charges,
+                    "missing": [k for k in ("freight", "origin", "destination") if charges.get(k) is None],
+                    "validity_days": r.validity_days, "transit_days": r.transit_days})
+    return out
 
 
 @router.get("/rfqs/{rfq_id}/compare")

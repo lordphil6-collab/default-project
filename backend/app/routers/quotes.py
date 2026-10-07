@@ -32,6 +32,18 @@ class QuoteOut(BaseModel):
     final_price: float
 
 
+@router.get("/customer-quotes", response_model=list[QuoteOut])
+async def list_quotes(situation_id: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
+    rows = (
+        (await s.execute(select(CustomerQuotation).where(
+            CustomerQuotation.org_id == user.org_id, CustomerQuotation.situation_id == situation_id).limit(50)))
+        .scalars()
+        .all()
+    )
+    return [QuoteOut(id=r.id, status=r.status, agent_total=r.agent_total,
+                     markup_amount=r.markup_amount, final_price=r.final_price) for r in rows]
+
+
 def _total_of(q: AgentQuotation) -> float | None:
     parts = [q.freight, q.origin_charges, q.destination_charges, q.other_charges]
     if q.freight is None or q.destination_charges is None:

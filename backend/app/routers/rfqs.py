@@ -18,6 +18,17 @@ class RFQCreateIn(BaseModel):
 class RFQOut(BaseModel):
     id: str
     status: str
+    situation_id: str
+
+
+@router.get("/rfqs", response_model=list[RFQOut])
+async def list_rfqs(situation_id: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
+    rows = (
+        (await s.execute(select(RFQ).where(RFQ.org_id == user.org_id, RFQ.situation_id == situation_id).limit(50)))
+        .scalars()
+        .all()
+    )
+    return [RFQOut(id=r.id, status=r.status, situation_id=r.situation_id) for r in rows]
 
 
 @router.post("/rfqs", response_model=RFQOut)
@@ -35,4 +46,4 @@ async def create_rfq(payload: RFQCreateIn, user: CurrentUser = Depends(get_curre
     if sit.status in ("New", "Information Required") and not sit.missing:
         sit.status = "RFQ In Progress"
     await s.commit()
-    return RFQOut(id=rfq.id, status=rfq.status)
+    return RFQOut(id=rfq.id, status=rfq.status, situation_id=sit.id)

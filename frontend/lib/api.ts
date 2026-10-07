@@ -1,6 +1,6 @@
 // Authed FastAPI client. JWT comes from our own /api/auth/token route (same-origin,
 // session cookie) so no client-plugin API guessing. Org is the active organization.
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8006";
+const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"; // canonical API (LOCAL_STACK.md)
 
 async function authHeaders(): Promise<Record<string, string>> {
   const tok = await fetch("/api/auth/token");
@@ -12,7 +12,8 @@ async function authHeaders(): Promise<Record<string, string>> {
   const orgId = ((await sess.json()) as { session?: { activeOrganizationId?: string } | null })?.session
     ?.activeOrganizationId;
   if (!orgId) throw new Error("No active organization — create or activate one, then retry.");
-  return { Authorization: `Bearer ${token}`, "X-Org-Id": orgId, "X-Role": "CSR" };
+  const role = typeof window === "undefined" ? "CSR" : window.localStorage.getItem("qd-role") || "CSR";
+  return { Authorization: `Bearer ${token}`, "X-Org-Id": orgId, "X-Role": role };
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
