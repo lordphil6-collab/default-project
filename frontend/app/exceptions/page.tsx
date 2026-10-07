@@ -8,6 +8,7 @@ type Exception = { id: string; situation_id: string; category: string; owner: st
 export default function Exceptions() {
   const [rows, setRows] = useState<Exception[]>([]);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setError("");
@@ -32,13 +33,18 @@ export default function Exceptions() {
           <a href={`/situations/${e.situation_id}`} className="mono">{e.situation_id.slice(0, 8)}</a>{" "}
           {e.status === "Open" ? (
             <ActionButton
+              busy={busy === e.id}
               secondary
               onClick={async () => {
+                setBusy(e.id);
+                setError("");
                 try {
                   await api(`/exceptions/${e.id}/resolve`, { method: "POST" });
                   await refresh();
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "Failed");
+                } finally {
+                  setBusy(null);
                 }
               }}
             >

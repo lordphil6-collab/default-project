@@ -12,6 +12,7 @@ export default function Home() {
   const [channel, setChannel] = useState("email");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -35,11 +36,13 @@ export default function Home() {
     e.preventDefault();
     setSending(true);
     setError("");
+    setNotice("");
     try {
-      await api("/intake", {
+      const created = await api<{ id: string }>("/intake", {
         method: "POST",
         body: JSON.stringify({ customer_name: customer, channel, body }),
       });
+      setNotice(`Enquiry captured ✓ (${created.id.slice(0, 8)})`);
       setCustomer("");
       setBody("");
       await refresh();
@@ -76,8 +79,9 @@ export default function Home() {
           </select>
           <textarea aria-label="Enquiry text" rows={3} placeholder="e.g. quote for 5 cartons from Guangzhou to Lagos" value={body} onChange={(e) => setBody(e.target.value)} />
           <p>
-            <ActionButton> {sending ? "Sending…" : "Capture enquiry"} </ActionButton>
+            <ActionButton busy={sending}> {sending ? "Sending…" : "Capture enquiry"} </ActionButton>
           </p>
+          {notice ? <p className="pill green">{notice}</p> : null}
         </form>
       </Card>
 

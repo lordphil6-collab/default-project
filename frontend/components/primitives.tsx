@@ -20,14 +20,23 @@ export function ActionButton({
   secondary,
   children,
   onClick,
+  busy,
 }: {
   secondary?: boolean;
   children: React.ReactNode;
   onClick?: () => void;
+  busy?: boolean;
 }) {
   return (
-    <button className={secondary ? "btn sec" : "btn"} onClick={onClick} type="button">
+    <button
+      className={secondary ? "btn sec" : "btn"}
+      onClick={onClick}
+      type="button"
+      disabled={busy}
+      style={busy ? { opacity: 0.6 } : undefined}
+    >
       {children}
+      {busy ? " …" : ""}
     </button>
   );
 }

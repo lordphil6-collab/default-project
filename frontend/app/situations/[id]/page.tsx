@@ -24,13 +24,13 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [fups, setFups] = useState<FollowUp[]>([]);
   const [excs, setExcs] = useState<Exception[]>([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
   const [extractBody, setExtractBody] = useState("");
   const [ingest, setIngest] = useState<Record<string, { agent: string; body: string }>>({});
   const [markup, setMarkup] = useState({ quotation_id: "", kind: "percent", value: "12" });
   const [due, setDue] = useState("");
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
-
-  const fail = (err: unknown) => setError(err instanceof Error ? err.message : "Failed");
 
   const refresh = useCallback(async () => {
     setError("");
@@ -53,7 +53,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
       }
       setQuotes(qmap);
     } catch (err) {
-      fail(err);
+      setError(err instanceof Error ? err.message : "Load failed");
     }
   }, [sid]);
 
@@ -61,13 +61,17 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
     refresh();
   }, [refresh]);
 
-  async function run(fn: () => Promise<unknown>) {
+  async function act(key: string, label: string, fn: () => Promise<unknown>) {
+    setBusy(key);
     setError("");
     try {
       await fn();
+      setNotice(`${label} ✓`);
       await refresh();
     } catch (err) {
-      fail(err);
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -75,6 +79,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
     <>
       <Card title={`Situation ${sid.slice(0, 8)}`}>
         {error ? <p className="pill red">{error}</p> : null}
+        {notice ? <p className="pill green">{notice}</p> : null}
         {!sit ? (
           <p className="muted">Loading…</p>
         ) : (
@@ -92,7 +97,8 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
         <textarea aria-label="Message text" rows={3} style={{ width: "100%" }} placeholder="Paste customer message to extract…" value={extractBody} onChange={(e) => setExtractBody(e.target.value)} />
         <p>
           <ActionButton
-            onClick={() => run(() => api(`/situations/${sid}/extract`, { method: "POST", body: JSON.stringify({ body: extractBody }) }))}
+            busy={busy === "extract"}
+            onClick={() => act("extract", "Extracted into situation", () => api(`/situations/${sid}/extract`, { method: "POST", body: JSON.stringify({ body: extractBody }) }))}
           >
             Extract into situation
           </ActionButton>
@@ -101,7 +107,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
 
       <Card title={`RFQs (${rfqs.length})`}>
         <p>
-          <ActionButton onClick={() => run(() => api("/rfqs", { method: "POST", body: JSON.stringify({ situation_id: sid }) }))}>
+          <ActionButton busy={busy === "rfq"} onClick={() => act("rfq", "RFQ created", () => api("/rfqs", { method: "POST", body: JSON.stringify({ situation_id: sid }) }))}>
             Create RFQ
           </ActionButton>
         </p>
@@ -109,7 +115,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           <div key={rfq.id} className="card" style={{ marginBottom: 10 }}>
             <p>
               <b className="mono">{rfq.id.slice(0, 8)}</b> <StatusPill tone="indigo">{rfq.status}</StatusPill>{" "}
-              <ActionButton secondary onClick={() => run(async () => {
+              <ActionButton busy={busy === `cmp-${rfq.id}`} secondary onClick={() => act(`cmp-${rfq.id}`, "Comparison refreshed", async () => {
                 const cmp = await api<Compare>(`/rfqs/${rfq.id}/compare`);
                 setCompare((c) => ({ ...c, [rfq.id]: cmp }));
               })}>
@@ -144,9 +150,10 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                 onChange={(e) => setIngest((m) => ({ ...m, [rfq.id]: { agent: m[rfq.id]?.agent || "", body: e.target.value } }))}
               />
               <ActionButton
+                busy={busy === `ing-${rfq.id}`}
                 secondary
                 onClick={() =>
-                  run(() =>
+                  act(`ing-${rfq.id}`, "Quotation ingested", () =>
                     api(`/rfqs/${rfq.id}/quotations`, {
                       method: "POST",
                       body: JSON.stringify({ agent: ingest[rfq.id]?.agent || "Agent", body_text: ingest[rfq.id]?.body || "" }),
@@ -171,6 +178,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           </select>
           <input aria-label="Markup value" placeholder="12" style={{ width: 80 }} value={markup.value} onChange={(e) => setMarkup((m) => ({ ...m, value: e.target.value }))} />
           <ActionButton
+            busy={busy === "price"}
             secondary
             onClick={() => {
               const qid = Object.values(quotes).flat().find((q) => q.id.startsWith(markup.quotation_id))?.id;
@@ -178,7 +186,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                 setError("Pick an agent quotation id shown above (first 8 chars).");
                 return;
               }
-              run(() =>
+              act("price", "Customer quote priced", () =>
                 api("/customer-quotes", {
                   method: "POST",
                   body: JSON.stringify({ situation_id: sid, agent_quotation_id: qid, markup_kind: markup.kind, markup_value: Number(markup.value) || 0 }),
@@ -193,10 +201,10 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           <p key={q.id}>
             <b className="mono">${q.final_price.toFixed(2)}</b> (cost {q.agent_total.toFixed(2)} + {q.markup_amount.toFixed(2)}){" "}
             <StatusPill tone={q.status === "Sent" ? "green" : "amber"}>{q.status}</StatusPill>{" "}
-            <ActionButton secondary onClick={() => run(() => api(`/customer-quotes/${q.id}/approve`, { method: "POST" }))}>
+            <ActionButton busy={busy === `ap-${q.id}`} secondary onClick={() => act(`ap-${q.id}`, "Quote approved — needs Manager role", () => api(`/customer-quotes/${q.id}/approve`, { method: "POST" }))}>
               Approve (Manager)
             </ActionButton>{" "}
-            <ActionButton secondary onClick={() => run(() => api(`/customer-quotes/${q.id}/send`, { method: "POST" }))}>
+            <ActionButton busy={busy === `se-${q.id}`} secondary onClick={() => act(`se-${q.id}`, "Quote sent", () => api(`/customer-quotes/${q.id}/send`, { method: "POST" }))}>
               Send
             </ActionButton>
           </p>
@@ -207,8 +215,9 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
         <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
           <input aria-label="Due date" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           <ActionButton
+            busy={busy === "fup"}
             secondary
-            onClick={() => run(() => api("/follow-ups", { method: "POST", body: JSON.stringify({ situation_id: sid, due_at: due ? new Date(due).toISOString() : null }) }))}
+            onClick={() => act("fup", "Follow-up added", () => api("/follow-ups", { method: "POST", body: JSON.stringify({ situation_id: sid, due_at: due ? new Date(due).toISOString() : null }) }))}
           >
             Add follow-up
           </ActionButton>
@@ -222,8 +231,9 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           {(["Negotiation", "Accepted", "Rejected", "Expired"] as const).map((o) => (
             <span key={o} style={{ marginRight: 8 }}>
               <ActionButton
+                busy={busy === `oc-${o}`}
                 secondary
-                onClick={() => run(() => api(`/situations/${sid}/outcome`, { method: "POST", body: JSON.stringify({ outcome: o }) }))}
+                onClick={() => act(`oc-${o}`, `Outcome recorded: ${o}`, () => api(`/situations/${sid}/outcome`, { method: "POST", body: JSON.stringify({ outcome: o }) }))}
               >
                 {o}
               </ActionButton>
@@ -244,9 +254,10 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           <input aria-label="Detail" placeholder="What happened" value={exc.detail} onChange={(e) => setExc((x) => ({ ...x, detail: e.target.value }))} />
           <input aria-label="Owner" placeholder="Owner" value={exc.owner} onChange={(e) => setExc((x) => ({ ...x, owner: e.target.value }))} />
           <ActionButton
+            busy={busy === "exc"}
             secondary
             onClick={() =>
-              run(() => api("/exceptions", { method: "POST", body: JSON.stringify({ situation_id: sid, ...exc, next_action: exc.next }) }))
+              act("exc", "Exception logged", () => api("/exceptions", { method: "POST", body: JSON.stringify({ situation_id: sid, ...exc, next_action: exc.next }) }))
             }
           >
             Log exception
@@ -256,7 +267,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           <p key={e.id} className="muted">
             <b>{e.category}</b> — {e.status} — owner {e.owner || "?"} — {e.next_action || "no next action"}{" "}
             {e.status === "Open" ? (
-              <ActionButton secondary onClick={() => run(() => api(`/exceptions/${e.id}/resolve`, { method: "POST" }))}>
+              <ActionButton busy={busy === `re-${e.id}`} secondary onClick={() => act(`re-${e.id}`, "Exception resolved", () => api(`/exceptions/${e.id}/resolve`, { method: "POST" }))}>
                 Resolve
               </ActionButton>
             ) : null}
