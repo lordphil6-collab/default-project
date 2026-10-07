@@ -1,21 +1,52 @@
 """Persistent local Postgres for pilot dev (no admin/Docker needed).
 
-Uses pgserver wheels. Starts PG 16 on 127.0.0.1, ensures quote_desk DB,
-writes the asyncpg URL to .pg_url, then blocks to keep the server alive.
-Run in background: it must stay alive while the API/migrations use it.
-Restart after reboot with the same command.
+Fixed port 5433 so .pg_url/.env stay valid across restarts. Starts pg_ctl
+WITHOUT -w (pgserver's 10s wait times out on WAL replay after unclean
+shutdowns) and polls pg_isready instead. Run in background; restart after
+reboot with the same command.
 """
 import asyncio
+import os
+import subprocess
+import sys
 import time
 
 import asyncpg
-import pgserver
 
+PORT = 5433
+PGDATA = r"C:\Users\user\pgdata"
 ROOT = r"C:\Users\user\Documents\Default Project"
 
 
-async def ensure_db(admin_uri: str) -> None:
-    conn = await asyncpg.connect(admin_uri)
+def binpath() -> str:
+    import pgserver
+
+    return os.path.join(os.path.dirname(pgserver.__file__), "pginstall", "bin")
+
+
+def start() -> None:
+    subprocess.run(
+        [os.path.join(binpath(), "pg_ctl.exe"), "-D", PGDATA,
+         "-o", '-h "127.0.0.1"', "-o", f"-p {PORT}",
+         "-l", os.path.join(PGDATA, "log"), "start"],
+        check=True,
+    )
+
+
+def wait_ready(timeout_s: int = 300) -> None:
+    exe = os.path.join(binpath(), "pg_isready.exe")
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        r = subprocess.run([exe, "-h", "127.0.0.1", "-p", str(PORT)],
+                           capture_output=True, text=True)
+        if r.returncode == 0:
+            return
+        time.sleep(5)
+    raise RuntimeError("postgres never became ready")
+
+
+async def ensure_db() -> None:
+    conn = await asyncpg.connect(f"postgresql://postgres@127.0.0.1:{PORT}/postgres")
     try:
         await conn.execute("CREATE DATABASE quote_desk")
         print("created database quote_desk")
@@ -28,19 +59,16 @@ async def ensure_db(admin_uri: str) -> None:
         await conn.close()
 
 
-def to_asyncpg(uri: str, dbname: str) -> str:
-    uri = uri.replace("postgresql://", "postgresql+asyncpg://", 1)
-    base = uri.rsplit("/", 1)[0]
-    return f"{base}/{dbname}"
-
-
 def main() -> None:
-    srv = pgserver.get_server(r"C:\Users\user\pgdata", cleanup_mode=None)
-    admin_uri = srv.get_uri()
-    print("postgres up:", admin_uri, flush=True)
-    asyncio.run(ensure_db(admin_uri))
-    url = to_asyncpg(admin_uri, "quote_desk")
-    with open(ROOT + "\\.pg_url", "w") as f:
+    if not os.path.exists(os.path.join(PGDATA, "PG_VERSION")):
+        import pgserver
+
+        pgserver.get_server(PGDATA)  # first-time init only
+    start()
+    wait_ready()
+    asyncio.run(ensure_db())
+    url = f"postgresql+asyncpg://postgres:@127.0.0.1:{PORT}/quote_desk"
+    with open(os.path.join(ROOT, ".pg_url"), "w") as f:
         f.write(url)
     print("wrote .pg_url:", url, flush=True)
     while True:
@@ -48,4 +76,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
