@@ -1,50 +1,103 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { api, Situation, TodayCounts } from "../lib/api";
 import { ActionButton, Card, StatusPill } from "../components/primitives";
-import { ApprovalCard, CompareTable, ConfidenceBadge, FieldConfidence, SituationCard } from "../components/domain";
 
 export default function Home() {
+  const [counts, setCounts] = useState<TodayCounts | null>(null);
+  const [situations, setSituations] = useState<Situation[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [customer, setCustomer] = useState("");
+  const [channel, setChannel] = useState("email");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [c, s] = await Promise.all([api<TodayCounts>("/dashboard/today"), api<Situation[]>("/situations")]);
+      setCounts(c);
+      setSituations(s);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Load failed");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    setError("");
+    try {
+      await api("/intake", {
+        method: "POST",
+        body: JSON.stringify({ customer_name: customer, channel, body }),
+      });
+      setCustomer("");
+      setBody("");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Send failed");
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <>
       <Card title="Today — What needs attention?">
-        <p>
-          <StatusPill tone="red">3 Urgent</StatusPill> <StatusPill tone="amber">7 Follow-ups</StatusPill>{" "}
-          <StatusPill tone="indigo">4 Pending agents</StatusPill> <StatusPill tone="amber">2 Awaiting approval</StatusPill>{" "}
-          <StatusPill tone="red">2 Exceptions</StatusPill>
-        </p>
-        <p className="muted">Prioritised queue, not just info. Phase 1 is static mock data; live data lands Phase 4+.</p>
+        {loading && !counts ? (
+          <p className="muted">Loading live data…</p>
+        ) : counts ? (
+          <p>
+            <StatusPill tone="red">{counts.urgent} Urgent</StatusPill>{" "}
+            <StatusPill tone="amber">{counts.follow_ups} Follow-ups</StatusPill>{" "}
+            <StatusPill tone="indigo">{counts.pending_agents} Pending agents</StatusPill>{" "}
+            <StatusPill tone="amber">{counts.awaiting_approval} Awaiting approval</StatusPill>{" "}
+            <StatusPill tone="red">{counts.exceptions} Exceptions</StatusPill>
+          </p>
+        ) : null}
+        {error ? <p className="pill red">{error}</p> : null}
       </Card>
 
-      <SituationCard
-        id="SIT-1042"
-        route="20ft China → Lagos"
-        status="RFQ In Progress"
-        summary="Import freight, 1×20ft. Missing: weight, pickup, incoterm. Next: send RFQ to 3 agents."
-      >
-        <div style={{ marginBottom: 8 }}>
-          <ConfidenceBadge level="Medium" />
-        </div>
-        <FieldConfidence confirmed={["origin", "destination", "20ft"]} assumed={["ocean freight"]} missing={["weight", "pickup"]} />
-        <div className="timeline" style={{ marginTop: 10 }}>
-          <div><b>Customer WA:</b> “Need quote for one 20ft China to Lagos”</div>
-          <div><b>RFQ sent:</b> Agent A/B/C • B viewed, A opened</div>
-        </div>
-        <p style={{ marginTop: 10 }}>
-          <ActionButton>Approve RFQ send</ActionButton> <ActionButton secondary>Edit clarification</ActionButton>
-        </p>
-      </SituationCard>
-
-      <Card title="Comparison — Included / Excluded / Unknown">
-        <CompareTable
-          rows={[
-            { param: "Ocean freight", a: "$1,850", b: "$1,720", c: "$1,900" },
-            { param: "Destination", a: "$650", b: "Unknown", c: "$580", unknownB: true },
-            { param: "Transit", a: "35d", b: "32d", c: "38d" },
-            { param: "Total", a: "$2,920", b: "Cannot compare", c: "$2,870?", unknownB: true },
-          ]}
-        />
-        <p className="muted"><b>Recommendation:</b> Agent A — complete costs + competitive total. Unknown ≠ zero.</p>
+      <Card title="New enquiry">
+        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input aria-label="Customer name" placeholder="Customer company" value={customer} onChange={(e) => setCustomer(e.target.value)} />
+          <select aria-label="Channel" value={channel} onChange={(e) => setChannel(e.target.value)}>
+            <option value="email">Email</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+          <textarea aria-label="Enquiry text" rows={3} placeholder="e.g. quote for 5 cartons from Guangzhou to Lagos" value={body} onChange={(e) => setBody(e.target.value)} />
+          <p>
+            <ActionButton> {sending ? "Sending…" : "Capture enquiry"} </ActionButton>
+          </p>
+        </form>
       </Card>
 
-      <ApprovalCard total="$2,920" markup="12%" />
+      <Card title={`Situations (${situations.length})`}>
+        {loading && situations.length === 0 ? (
+          <p className="muted">Loading…</p>
+        ) : situations.length === 0 && !error ? (
+          <p className="muted">No situations yet — capture an enquiry above and it appears here.</p>
+        ) : (
+          situations.map((s) => (
+            <div key={s.id} className="card" style={{ marginBottom: 10 }}>
+              <p>
+                <b className="mono">{s.id.slice(0, 8)}</b> <StatusPill tone="amber">{s.status}</StatusPill>
+              </p>
+              {s.missing.length > 0 ? <p className="muted">Missing: {s.missing.join(", ")}</p> : null}
+              {s.next_action ? <p className="muted">Next: {s.next_action}</p> : null}
+            </div>
+          ))
+        )}
+      </Card>
     </>
   );
 }
