@@ -19,6 +19,7 @@ class AgentIn(BaseModel):
     services: list[str] = []
     capabilities: list[str] = []
     contact: str = ""
+    email: str = ""
     notes: str = ""
 
 
@@ -28,6 +29,7 @@ class AgentOut(BaseModel):
     routes: list[str] = []
     services: list[str] = []
     capabilities: list[str] = []
+    email: str = ""
     status: str
 
 
@@ -41,18 +43,18 @@ async def create_agent(payload: AgentIn, user: CurrentUser = Depends(get_current
                        _: CurrentUser = Depends(require_entitlement), s: AsyncSession = Depends(_session)):
     row = Agent(org_id=user.org_id, company=payload.company, routes=payload.routes,
                 services=[x.lower() for x in payload.services], capabilities=payload.capabilities,
-                contact=payload.contact, notes=payload.notes)
+                contact=payload.contact, email=payload.email, notes=payload.notes)
     s.add(row)
     await s.commit()
     return AgentOut(id=row.id, company=row.company, routes=row.routes, services=row.services,
-                    capabilities=row.capabilities, status=row.status)
+                    capabilities=row.capabilities, email=row.email, status=row.status)
 
 
 @router.get("/agents", response_model=list[AgentOut])
 async def list_agents(user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
     rows = ((await s.execute(select(Agent).where(Agent.org_id == user.org_id).limit(200))).scalars().all())
     return [AgentOut(id=r.id, company=r.company, routes=r.routes, services=r.services,
-                     capabilities=r.capabilities, status=r.status) for r in rows]
+                     capabilities=r.capabilities, email=r.email or "", status=r.status) for r in rows]
 
 
 @router.get("/agents/match")

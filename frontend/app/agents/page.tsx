@@ -20,7 +20,7 @@ export default function Agents() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ company: "", routes: "", services: "", capabilities: "", contact: "" });
+  const [form, setForm] = useState({ company: "", routes: "", services: "", capabilities: "", contact: "", email: "" });
 
   const refresh = useCallback(async () => {
     setError("");
@@ -49,10 +49,11 @@ export default function Agents() {
           services: split(form.services),
           capabilities: split(form.capabilities),
           contact: form.contact,
+          email: form.email,
         }),
       });
       setNotice(`Agent ${form.company} added ✓`);
-      setForm({ company: "", routes: "", services: "", capabilities: "", contact: "" });
+      setForm({ company: "", routes: "", services: "", capabilities: "", contact: "", email: "" });
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -75,6 +76,7 @@ export default function Agents() {
           <input aria-label="Services" placeholder="Services (e.g. ocean, air)" value={form.services} onChange={set("services")} />
           <input aria-label="Capabilities" placeholder="Capabilities (e.g. 20ft, cartons)" value={form.capabilities} onChange={set("capabilities")} />
           <input aria-label="Contact" placeholder="Contact" value={form.contact} onChange={set("contact")} />
+          <input aria-label="Email" placeholder="rates@agent.com (for RFQ delivery + reply matching)" value={form.email} onChange={set("email")} />
           <p>
             <ActionButton busy={busy}>Add agent</ActionButton>
           </p>

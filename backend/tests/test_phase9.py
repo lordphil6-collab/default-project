@@ -56,8 +56,9 @@ def test_token_without_org_rejected(monkeypatch):
 
 def test_cron_configured():
     from worker.main import WorkerSettings
-    assert len(WorkerSettings.cron_jobs) == 1
-    job = WorkerSettings.cron_jobs[0]
-    fn = getattr(job, "coroutine", None) or getattr(job, "function", None)
-    assert fn is not None and fn.__name__ == "send_due_reminders"
+    names = sorted(
+        (getattr(job, "coroutine", None) or getattr(job, "function", None)).__name__
+        for job in WorkerSettings.cron_jobs
+    )
+    assert names == ["poll_all_mailboxes", "send_due_reminders"]
     assert WorkerSettings.functions and WorkerSettings.functions[0].__name__ == "send_due_reminders"

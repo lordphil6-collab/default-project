@@ -86,6 +86,9 @@ async def list_recipients(rfq_id: str, user: CurrentUser = Depends(get_current_u
 @router.post("/rfqs/{rfq_id}/send")
 async def send_rfq(rfq_id: str, user: CurrentUser = Depends(get_current_user),
                    _: CurrentUser = Depends(require_entitlement), s: AsyncSession = Depends(_session)):
+    from ..services import notify as n
+    from ..services.mail import rfq_subject
+
     rfq = ((await s.execute(select(RFQ).where(RFQ.id == rfq_id, RFQ.org_id == user.org_id))).scalars().first())
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found in org")
@@ -94,8 +97,25 @@ async def send_rfq(rfq_id: str, user: CurrentUser = Depends(get_current_user),
     recips = ((await s.execute(select(RFQRecipient).where(RFQRecipient.rfq_id == rfq.id))).scalars().all())
     if not recips:
         raise HTTPException(status_code=422, detail="Select at least one recipient agent first")
-    rfq.status = "Sent"
+    sit = ((await s.execute(select(Situation).where(Situation.id == rfq.situation_id))).scalars().first())
+    ship = (sit.shipment or {}) if sit else {}
+    route = f"{ship.get('origin', '?')} → {ship.get('destination', '?')}"
+    deliveries = []
     for r in recips:
-        r.status = "Sent"
+        agent = ((await s.execute(select(Agent).where(Agent.id == r.agent_id))).scalars().first())
+        if agent is not None and (agent.email or "").strip():
+            d = n.send_email(
+                agent.email.strip(),
+                rfq_subject(rfq.id, route),
+                f"Rate request {route}\nRFQ {rfq.id[:8]}\n\n"
+                f"Shipment: {ship.get('quantity', '?')}, {ship.get('weight_kg') or '?'} kg, "
+                f"mode {ship.get('mode', '?')}.\n\nReply to this email — your quote is picked up automatically.",
+            )
+            r.status = "Sent" if d["status"] == "sent" else "Selected"
+        else:
+            d = {"agent": agent.company if agent else r.agent_id,
+                 "status": "logged-only", "detail": "no agent email on file"}
+        deliveries.append({"agent": agent.company if agent else r.agent_id, **{k: v for k, v in d.items() if k != "agent"}})
+    rfq.status = "Sent"
     await s.commit()
-    return {"rfq_id": rfq.id, "status": rfq.status, "sent_to": len(recips)}
+    return {"rfq_id": rfq.id, "status": rfq.status, "sent_to": len(recips), "deliveries": deliveries}

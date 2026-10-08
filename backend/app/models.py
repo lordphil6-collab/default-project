@@ -88,8 +88,21 @@ class Agent(Base):
     services: Mapped[list] = mapped_column(JSON, default=list)  # e.g. ["ocean", "air"]
     capabilities: Mapped[list] = mapped_column(JSON, default=list)  # e.g. ["20ft", "cartons"]
     contact: Mapped[str] = mapped_column(String(320), default="")
+    email: Mapped[str] = mapped_column(String(320), default="")
     status: Mapped[str] = mapped_column(String(32), default="Active")  # Active|Inactive
     notes: Mapped[str] = mapped_column(Text, default="")
+
+
+class Mailbox(Base):
+    __tablename__ = "mailboxes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id"))
+    provider: Mapped[str] = mapped_column(String(32), default="imap")  # imap|gmail-oauth|outlook-oauth
+    host: Mapped[str] = mapped_column(String(200), default="")
+    username: Mapped[str] = mapped_column(String(320), default="")
+    secret: Mapped[str] = mapped_column(Text, default="")  # Fernet-encrypted app password
+    last_uid: Mapped[int] = mapped_column(default=0)
+    status: Mapped[str] = mapped_column(String(32), default="Active")
 
 
 class RFQRecipient(Base):
