@@ -3,6 +3,7 @@ import { usePathname } from "next/navigation";
 
 const NAV: [string, string][] = [
   ["Dashboard", "/"],
+  ["Get quote", "/quote"],
   ["Situations", "/situations"],
   ["Agents", "/agents"],
   ["Inbox", "/inbox"],

@@ -1,8 +1,8 @@
-# Default Project
+# Freight Customer Service Desk
 
 ## Overview
 
-A Python project initialized with OpenCode. This repository provides a clean starting point for building Python applications with proper structure and tooling.
+AI-powered workspace for logistics customer service: enquiries, situations, RFQs, quotation comparison, customer quotes, follow-ups, and a public quote + tracking portal. FastAPI backend + Next.js frontend + Better Auth.
 
 ## Getting Started
 

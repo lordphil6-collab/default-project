@@ -1,4 +1,4 @@
-# Product Requirements Document — AI Customer Service & Quotation Desk
+# Product Requirements Document — Freight Customer Service Desk
 **Living document** (supersedes `PRODUCT REQUIREMENTS DOCUMENT.pdf`, kept as v1 record).
 Last updated: 2026-10-08. Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
 

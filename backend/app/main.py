@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import admin, agents, billing, dashboard, exceptions, followups, inbox, intake, mailboxes, portal, pricing_rules, quotations, quotes, rates, rfqs, situations, understand
 
-app = FastAPI(title="AI Quotation Desk", version="0.9.0")
+app = FastAPI(title="Freight Customer Service Desk", version="0.9.0")
 app.include_router(admin.router, tags=["admin"])
 app.include_router(agents.router, tags=["agents"])
 app.include_router(billing.router, tags=["billing"])
