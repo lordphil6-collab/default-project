@@ -1,33 +1,48 @@
 "use client";
 import { useState } from "react";
+import { api } from "../../lib/api";
+import { ActionButton, Card, StatusPill } from "../../components/primitives";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+type Option = { agent: string; trips: number; low: number; avg: number; high: number; transit_days: number | null };
+type Guideline = {
+  available: boolean; basis: string; confidence: string; low?: number; typical?: number; high?: number;
+  count?: number; options?: Option[]; note?: string;
+};
+type Match = { agent_id: string; agent: string; score: number; reasons: string[] };
 
 export default function Quote() {
-  const [name, setName] = useState("");
-  const [contact, setContact] = useState("");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
-  const [details, setDetails] = useState("");
+  const [load, setLoad] = useState("");
+  const [goods, setGoods] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState<{ reference: string; summary: string; missing: string[] } | null>(null);
+  const [guide, setGuide] = useState<Guideline | null>(null);
+  const [matched, setMatched] = useState<Match[]>([]);
+  const [sid, setSid] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
+    setGuide(null);
+    setMatched([]);
+    setSid(null);
     try {
-      const body = `Quote request from ${origin} to ${destination}. ${details}`.trim();
-      const res = await fetch(`${API}/public/enquiries`, {
+      const body = `Quote request from ${origin} to ${destination}. Load: ${load}. Goods: ${goods}`.trim();
+      const sit = await api<{ id: string }>("/intake", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_name: name, contact, body }),
+        body: JSON.stringify({ customer_name: "Self quote", channel: "web", body }),
       });
-      if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 200)}`);
-      setDone(await res.json());
+      setSid(sit.id);
+      const [g, m] = await Promise.all([
+        api<Guideline>(`/situations/${sit.id}/guideline`),
+        api<Match[]>(`/agents/match?situation_id=${sit.id}`),
+      ]);
+      setGuide(g);
+      setMatched(m);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
+      setError(err instanceof Error ? err.message : "Search failed — sign in first.");
     } finally {
       setBusy(false);
     }
@@ -38,32 +53,76 @@ export default function Quote() {
   );
 
   return (
-    <div className="card" style={{ maxWidth: 560 }}>
-      <h2 style={{ fontSize: 16, margin: "4px 0 8px" }}>Get a freight quote — no account needed</h2>
-      {error ? <p className="pill red">{error}</p> : null}
-      {done ? (
-        <>
-          <p className="pill green">Request received ✓ reference {done.reference}</p>
-          <p>{done.summary}</p>
-          {done.missing.length > 0 ? (
-            <p className="muted">To quote accurately we may ask about: {done.missing.join(", ")}.</p>
-          ) : null}
-          <p className="muted">A forwarder will respond shortly. Already a customer? <a href="/login">Sign in</a>.</p>
-        </>
-      ) : (
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {input("Your name / company", name, setName, "Acme Traders")}
-          {input("Contact", contact, setContact, "email or phone")}
-          {input("Origin", origin, setOrigin, "e.g. Guangzhou")}
-          {input("Destination", destination, setDestination, "e.g. Lagos")}
-          <textarea aria-label="Shipment details" rows={3} placeholder="e.g. 5 cartons, approx weight, container or air?" value={details} onChange={(e) => setDetails(e.target.value)} />
-          <p>
-            <button className="btn" type="submit" disabled={busy} style={busy ? { opacity: 0.6 } : undefined}>
-              Request quote{busy ? " …" : ""}
-            </button>
-          </p>
+    <>
+      <div className="card">
+        <h2 style={{ fontSize: 16, margin: "4px 0 8px" }}>Search freight rates</h2>
+        <p className="muted">Account required — results come from your carriers plus live history.</p>
+        {error ? <p className="pill red">{error}</p> : null}
+        <form onSubmit={submit} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {input("Origin", origin, setOrigin, "Where from?")}
+          {input("Destination", destination, setDestination, "Where to?")}
+          {input("Load", load, setLoad, "e.g. 1×20ft, 200kg air")}
+          {input("Goods", goods, setGoods, "What goods?")}
+          <button className="btn" type="submit" disabled={busy} style={busy ? { opacity: 0.6 } : undefined}>
+            Search rates{busy ? " …" : ""}
+          </button>
         </form>
-      )}
-    </div>
+      </div>
+
+      {guide ? (
+        <Card title="Instant estimate">
+          {guide.available ? (
+            <p>
+              <b className="mono">${guide.low?.toLocaleString()} – ${guide.high?.toLocaleString()}</b>{" "}
+              (typical <b className="mono">${guide.typical?.toLocaleString()}</b>){" "}
+              <StatusPill tone={guide.confidence === "High" ? "green" : "amber"}>{guide.confidence}</StatusPill>
+              <span className="muted"> · {guide.basis} · {guide.count} quote(s)</span>
+            </p>
+          ) : (
+            <p className="muted">{guide.note}</p>
+          )}
+          {sid ? <p><a href={`/situations/${sid}`}>Open as situation →</a></p> : null}
+        </Card>
+      ) : null}
+
+      {guide?.options && guide.options.length > 0 ? (
+        <Card title={`Carrier options (${guide.options.length}) — from rate history`}>
+          <table className="cmp">
+            <thead>
+              <tr>
+                <th>Carrier</th>
+                <th>Avg all-in</th>
+                <th>Range</th>
+                <th>Trips</th>
+                <th>Transit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {guide.options.map((o, i) => (
+                <tr key={o.agent}>
+                  <td>
+                    {i === 0 ? <StatusPill tone="green">cheapest</StatusPill> : null} {o.agent}
+                  </td>
+                  <td className="mono">${o.avg.toLocaleString()}</td>
+                  <td className="mono">${o.low.toLocaleString()} – ${o.high.toLocaleString()}</td>
+                  <td>{o.trips}</td>
+                  <td>{o.transit_days ? `${o.transit_days}d` : "?"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      ) : null}
+
+      {matched.length > 0 ? (
+        <Card title="Recommended for this shipment">
+          {matched.map((m) => (
+            <p key={m.agent_id} className="muted">
+              <b>{m.agent}</b> — score {m.score}: {m.reasons.join("; ")}
+            </p>
+          ))}
+        </Card>
+      ) : null}
+    </>
   );
 }

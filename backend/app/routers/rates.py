@@ -27,7 +27,7 @@ async def _history(s: AsyncSession, org_id: str) -> list[dict]:
         if aq.freight is not None and aq.destination_charges is not None:
             total = round(aq.freight + (aq.origin_charges or 0.0)
                           + aq.destination_charges + (aq.other_charges or 0.0), 2)
-        out.append({"origin": ship.get("origin"), "destination": ship.get("destination"),
+        out.append({"agent": aq.agent, "origin": ship.get("origin"), "destination": ship.get("destination"),
                     "mode": ship.get("mode"), "total": total, "transit_days": aq.transit_days})
     return out
 

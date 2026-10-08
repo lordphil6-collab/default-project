@@ -36,17 +36,49 @@ def guideline(shipment: dict, history: list[dict]) -> dict:
         return [q for q in history if q.get("total") is not None and pred(q)]
 
     exact = pool(lambda q: _lane(q) == lane and (q.get("mode") or "").strip().lower() == mode) if mode else []
+    lane_only = pool(lambda q: _lane(q) == lane)
     if len(exact) >= 1:
-        stats, basis = lane_stats(exact), "same lane + mode"
+        stats, basis, used = lane_stats(exact), "same lane + mode", exact
+    elif lane_only:
+        stats, basis, used = lane_stats(lane_only), "same lane, any mode", lane_only
     else:
-        lane_only = pool(lambda q: _lane(q) == lane)
-        if lane_only:
-            stats, basis = lane_stats(lane_only), "same lane, any mode"
-        else:
-            stats, basis = {"count": 0}, "no history"
+        stats, basis, used = {"count": 0}, "no history", []
     if not stats.get("count"):
         return {"available": False, "basis": basis, "confidence": "Low",
                 "note": "No comparable history — send the RFQ and compare live quotes."}
     n = stats["count"]
     confidence = "High" if n >= 5 else ("Medium" if n >= 2 else "Low")
-    return {"available": True, "basis": basis, "confidence": confidence, **stats}
+    out = {"available": True, "basis": basis, "confidence": confidence, **stats}
+    opts = carrier_options(used)
+    if opts:
+        out["options"] = opts
+    return out
+
+
+def carrier_options(history: list[dict], limit: int = 8) -> list[dict]:
+    """Per-carrier lane averages from identifiable past totals.
+
+    history items: {agent, total, transit_days}. Sorted cheapest first —
+    the Freightos-style options list. Agents without identifiable totals
+    never appear (no invented prices).
+    """
+    from collections import defaultdict
+
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for q in history:
+        if q.get("total") is not None and q.get("agent"):
+            groups[q["agent"]].append(q)
+    opts = []
+    for agent, rows in groups.items():
+        totals = sorted(r["total"] for r in rows)
+        transits = sorted(r["transit_days"] for r in rows if r.get("transit_days"))
+        opts.append({
+            "agent": agent,
+            "trips": len(rows),
+            "low": totals[0],
+            "avg": round(sum(totals) / len(totals), 2),
+            "high": totals[-1],
+            "transit_days": transits[0] if transits else None,
+        })
+    opts.sort(key=lambda o: o["avg"])
+    return opts[:limit]

@@ -25,7 +25,7 @@ export default function Login() {
         <button className="btn" type="submit">Sign in</button>
       </form>
       <p className="muted">New company? <a href="/signup">Create account + trial</a> — your owner creates the organization, then invites you. Trial starts on signup.</p>
-      <p className="muted">Just need a price? <a href="/quote">Get a freight quote</a> — no account needed.</p>
+      <p className="muted">Just need a price? <a href="/quote">Get a freight quote</a> — sign in required.</p>
     </div>
   );
 }

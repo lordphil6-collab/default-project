@@ -17,12 +17,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="shell">
           <Nav />
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>{children}</div>
-          <aside style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div className="card">
-              <h2 style={{ fontSize: 15, margin: "4px 0" }}>Phase 1 scope</h2>
-              <p className="muted">Tokens + primitives + domain cards + shell. Full Storybook deferred (see /design-system).</p>
-            </div>
-          </aside>
         </div>
       </body>
     </html>

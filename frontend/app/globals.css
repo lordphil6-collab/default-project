@@ -49,7 +49,7 @@ body {
 }
 .shell {
   display: grid;
-  grid-template-columns: 220px 1fr 320px;
+  grid-template-columns: 220px 1fr;
   gap: 16px;
   padding: 16px;
   max-width: 1280px;
