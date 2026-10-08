@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { auth } from "../lib/auth-server";
 import { StatusPill } from "./primitives";
 import { LogoutButton } from "./logout-button";
-import { RoleSelect } from "./role-select";
 
 export async function SessionBar() {
   let email: string | null = null;
@@ -24,7 +23,6 @@ export async function SessionBar() {
       <span className="pill green" title={email}>
         {email.length > 22 ? `${email.slice(0, 22)}…` : email}
       </span>
-      <RoleSelect />
       <LogoutButton />
     </>
   );

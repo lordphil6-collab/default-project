@@ -12,8 +12,8 @@ async function authHeaders(): Promise<Record<string, string>> {
   const orgId = ((await sess.json()) as { session?: { activeOrganizationId?: string } | null })?.session
     ?.activeOrganizationId;
   if (!orgId) throw new Error("No active organization — create or activate one, then retry.");
-  const role = typeof window === "undefined" ? "CSR" : window.localStorage.getItem("qd-role") || "CSR";
-  return { Authorization: `Bearer ${token}`, "X-Org-Id": orgId, "X-Role": role };
+  // Role comes from the JWT (org membership); header is a fallback only.
+  return { Authorization: `Bearer ${token}`, "X-Org-Id": orgId, "X-Role": "CSR" };
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
