@@ -49,6 +49,7 @@ class Situation(Base):
     missing: Mapped[list] = mapped_column(JSON, default=list)
     next_action: Mapped[str] = mapped_column(String(500), default="")
     outcome: Mapped[str] = mapped_column(String(64), default="")
+    public_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
 
 
 class Conversation(Base):

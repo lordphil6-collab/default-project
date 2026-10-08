@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Edge-safe: checks the session cookie only. Deep auth is enforced by FastAPI.
-const PUBLIC = ["/login", "/signup", "/design-system", "/api/auth"];
+const PUBLIC = ["/login", "/signup", "/quote", "/track", "/design-system", "/api/auth"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

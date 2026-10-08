@@ -38,6 +38,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [sendChannel, setSendChannel] = useState("logged");
   const [matched, setMatched] = useState<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [sharePath, setSharePath] = useState<string | null>(null);
   const [guide, setGuide] = useState<Guideline | null>(null);
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
 
@@ -98,6 +99,20 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             </p>
             {sit.missing.length > 0 ? <p className="muted">Missing: {sit.missing.join(", ")}</p> : null}
             {sit.next_action ? <p className="muted">Next: {sit.next_action}</p> : null}
+            <p>
+              <ActionButton
+                busy={busy === "share"}
+                secondary
+                onClick={() => act("share", "Tracking link ready — send it to the customer", async () => {
+                  const r = await api<{ token: string; track_path: string }>(`/situations/${sid}/share`, { method: "POST" });
+                  setNotice(`Tracking link ready ✓ /track?token=${r.token.slice(0, 8)}… (full link in confirmation)`);
+                  setSharePath(r.track_path);
+                })}
+              >
+                Share tracking link
+              </ActionButton>{" "}
+              {sharePath ? <a href={sharePath}>Open tracking view →</a> : null}
+            </p>
           </>
         )}
       </Card>
