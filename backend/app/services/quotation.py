@@ -80,6 +80,20 @@ def compare_quotes(quotes: list[dict]) -> dict:
         rows.append({"agent": q["agent"], "total": total, "missing": missing,
                      "validity_days": q.get("validity_days", 0), "transit_days": q.get("transit_days", 0)})
     comparable = [r for r in rows if r["total"] is not None]
+    # Freightos-style rank + badges: cheapest by all-in total, fastest by transit.
+    # Unknown totals rank last and never earn badges.
+    for i, r in enumerate(sorted(comparable, key=lambda r: (r["total"], r["transit_days"])), start=1):
+        r["rank"] = i
+        r["badges"] = []
+    for r in rows:
+        if r["total"] is None:
+            r["rank"], r["badges"] = None, ["incomplete"]
+    if comparable:
+        cheapest = min(comparable, key=lambda r: (r["total"], r["transit_days"]))
+        cheapest["badges"].append("cheapest")
+        known_transit = [r for r in rows if r.get("transit_days")]
+        if known_transit:
+            min(known_transit, key=lambda r: r["transit_days"])["badges"].append("fastest")
     if all(not r["missing"] for r in rows) and len(rows) >= 2:
         confidence: str = "High"
     elif comparable:

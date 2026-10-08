@@ -6,9 +6,13 @@ import { ActionButton, Card, StatusPill } from "../../../components/primitives";
 type RFQ = { id: string; status: string; situation_id: string };
 type Quote = { id: string; agent: string; charges: Record<string, number | null>; missing: string[] };
 type Compare = {
-  rows: { agent: string; total: number | null; missing: string[] }[];
+  rows: { agent: string; total: number | null; missing: string[]; rank: number | null; badges: string[]; validity_days: number; transit_days: number }[];
   confidence: string;
   recommendation: { agent: string; reasoning: string } | null;
+};
+type Guideline = {
+  available: boolean; basis: string; confidence: string; low?: number; typical?: number; high?: number;
+  count?: number; fastest_transit_days?: number | null; note?: string;
 };
 type CustomerQuote = { id: string; status: string; agent_total: number; markup_amount: number; final_price: number };
 type FollowUp = { id: string; situation_id: string; bucket: string; status: string; due_at: string | null };
@@ -34,6 +38,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [sendChannel, setSendChannel] = useState("logged");
   const [matched, setMatched] = useState<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [guide, setGuide] = useState<Guideline | null>(null);
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
 
   const refresh = useCallback(async () => {
@@ -109,6 +114,35 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
         </p>
       </Card>
 
+      <Card title="Instant estimate — from past quotes">
+        {!guide ? (
+          <p>
+            <ActionButton
+              busy={busy === "guide"}
+              secondary
+              onClick={() => act("guide", "Guideline estimated from history", async () => {
+                setGuide(await api<Guideline>(`/situations/${sid}/guideline`));
+              })}
+            >
+              Estimate now
+            </ActionButton>{" "}
+            <span className="muted">No waiting for agents — based on comparable history.</span>
+          </p>
+        ) : guide.available ? (
+          <p>
+            <b className="mono">${guide.low?.toLocaleString()} – ${guide.high?.toLocaleString()}</b>{" "}
+            (typical <b className="mono">${guide.typical?.toLocaleString()}</b>){" "}
+            <StatusPill tone={guide.confidence === "High" ? "green" : "amber"}>{guide.confidence}</StatusPill>
+            <span className="muted">
+              {" "}· {guide.basis} · {guide.count} quote(s)
+              {guide.fastest_transit_days ? ` · fastest seen ${guide.fastest_transit_days}d` : ""}
+            </span>
+          </p>
+        ) : (
+          <p className="muted">{guide.note}</p>
+        )}
+      </Card>
+
       <Card title={`RFQs (${rfqs.length})`}>
         <p>
           <ActionButton busy={busy === "rfq"} onClick={() => act("rfq", "RFQ created", () => api("/rfqs", { method: "POST", body: JSON.stringify({ situation_id: sid }) }))}>
@@ -169,10 +203,45 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
               </p>
             ))}
             {compare[rfq.id] ? (
-              <p className="muted">
-                Confidence: <b>{compare[rfq.id].confidence}</b>
-                {compare[rfq.id].recommendation ? ` — ${compare[rfq.id].recommendation!.reasoning}` : " — no comparable quotes yet"}
-              </p>
+              <>
+                <p className="muted">
+                  Confidence: <b>{compare[rfq.id].confidence}</b>
+                  {compare[rfq.id].recommendation ? ` — ${compare[rfq.id].recommendation!.reasoning}` : " — no comparable quotes yet"}
+                </p>
+                <table className="cmp">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Agent</th>
+                      <th>All-in total</th>
+                      <th>Transit</th>
+                      <th>Validity</th>
+                      <th>Flags</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...compare[rfq.id].rows]
+                      .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))
+                      .map((r) => (
+                        <tr key={r.agent}>
+                          <td>{r.rank ?? "—"}</td>
+                          <td>{r.agent}</td>
+                          <td className="mono">{r.total != null ? `$${r.total.toLocaleString()}` : "cannot compare"}</td>
+                          <td>{r.transit_days ? `${r.transit_days}d` : "?"}</td>
+                          <td>{r.validity_days ? `${r.validity_days}d` : "?"}</td>
+                          <td>
+                            {r.badges.map((b) => (
+                              <span key={b}>
+                                <StatusPill tone={b === "cheapest" ? "green" : b === "fastest" ? "indigo" : "amber"}>{b}</StatusPill>{" "}
+                              </span>
+                            ))}
+                            {r.missing.length > 0 ? <span className="muted">missing {r.missing.join(", ")}</span> : null}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </>
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <input

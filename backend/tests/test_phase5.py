@@ -21,6 +21,10 @@ def test_compare_confidence_and_explained_recommendation():
     assert res["recommendation"]["agent"] == "Agent A"
     assert "complete cost structure" in res["recommendation"]["reasoning"]
     assert "Agent B" in res["recommendation"]["reasoning"] and "unknown" in res["recommendation"]["reasoning"].lower()
+    by_agent = {r["agent"]: r for r in res["rows"]}
+    assert by_agent["Agent A"]["rank"] == 1 and "cheapest" in by_agent["Agent A"]["badges"]
+    assert by_agent["Agent B"]["rank"] is None and "incomplete" in by_agent["Agent B"]["badges"]
+    assert "fastest" in by_agent["Agent B"]["badges"]  # 32d transit known even though total unknown
 
 
 def test_parse_quote_text_keeps_unknown():
