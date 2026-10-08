@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import CurrentUser, get_current_user
-from ..models import Agent, Situation
+from ..models import Agent, AgentQuotation, RFQRecipient, Situation
 from ..services import agents as matcher
 from ..services.billing import require_entitlement
 from .intake import _session
@@ -100,3 +100,17 @@ async def seed_samples(user: CurrentUser = Depends(get_current_user),
         added += 1
     await s.commit()
     return {"added": added, "note": "SAMPLE DATA — replace with contracted lines"}
+
+
+@router.get('/agents/{aid}/scorecard')
+async def scorecard(aid: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
+    agent = ((await s.execute(select(Agent).where(Agent.id == aid, Agent.org_id == user.org_id))).scalars().first())
+    if not agent:
+        raise HTTPException(status_code=404, detail='Not found')
+    recips = ((await s.execute(select(RFQRecipient).where(RFQRecipient.agent_id == aid))).scalars().all())
+    sent = [r for r in recips if r.status in ('Sent', 'Responded')]
+    responded = [r for r in recips if r.status == 'Responded']
+    quotes = ((await s.execute(select(AgentQuotation).where(AgentQuotation.agent_id == aid))).scalars().all())
+    selected = [q for q in quotes if q.selected]
+    return {'agent': agent.company, 'rfqs_received': len(sent), 'responses': len(responded), 'response_rate': round(len(responded) / len(sent), 3) if sent else None, 'quotations': len(quotes), 'wins': len(selected), 'win_rate': round(len(selected) / len(quotes), 3) if quotes else None}
+

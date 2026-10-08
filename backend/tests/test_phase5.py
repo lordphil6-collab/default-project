@@ -36,3 +36,17 @@ def test_parse_quote_text_keeps_unknown():
 def test_parse_other_charges_label():
     parsed = q.parse_quote_text("Ocean Freight $1,900\nOther Charges $180")
     assert parsed["charges"]["other"] == 180.0
+
+
+def test_flag_outliers_only_above_band():
+    rows = [
+        {"agent": "A", "total": 2920.0},
+        {"agent": "C", "total": 3900.0},
+        {"agent": "B", "total": None},
+    ]
+    out = q.flag_outliers(rows, 2920.0)
+    by = {r["agent"]: r for r in out}
+    assert by["A"]["outlier"] is False and by["A"]["deviation_pct"] == 0.0
+    assert by["C"]["outlier"] is True and by["C"]["deviation_pct"] > 25
+    assert by["B"]["outlier"] is False and "deviation_pct" not in by["B"]
+    assert q.flag_outliers(rows, None) == rows

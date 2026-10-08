@@ -70,6 +70,20 @@ def identifiable_total(charges: dict) -> float | None:
     )
 
 
+def flag_outliers(rows: list[dict], typical: float | None, pct: float = 25.0) -> list[dict]:
+    """Mark rows >pct% above the lane typical. Unknown totals never flagged."""
+    if not typical:
+        return rows
+    for r in rows:
+        total = r.get("total")
+        if total is None:
+            r["outlier"] = False
+            continue
+        r["deviation_pct"] = round((total - typical) / typical * 100, 1)
+        r["outlier"] = r["deviation_pct"] > pct
+    return rows
+
+
 def compare_quotes(quotes: list[dict]) -> dict:
     """quotes: [{agent, charges{freight,origin,destination,other}, validity_days, transit_days}]."""
     rows = []

@@ -79,7 +79,7 @@ export default function Home() {
           </select>
           <textarea aria-label="Enquiry text" rows={3} placeholder="e.g. quote for 5 cartons from Guangzhou to Lagos" value={body} onChange={(e) => setBody(e.target.value)} />
           <p>
-            <ActionButton busy={sending}> {sending ? "Sending…" : "Capture enquiry"} </ActionButton>
+            <ActionButton busy={sending} submit> {sending ? "Sending…" : "Capture enquiry"} </ActionButton>
           </p>
           {notice ? <p className="pill green">{notice}</p> : null}
         </form>

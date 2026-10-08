@@ -97,7 +97,7 @@ export default function Agents() {
           <input aria-label="Contact" placeholder="Contact" value={form.contact} onChange={set("contact")} />
           <input aria-label="Email" placeholder="rates@agent.com (for RFQ delivery + reply matching)" value={form.email} onChange={set("email")} />
           <p>
-            <ActionButton busy={busy === "save"}>Add agent</ActionButton>
+            <ActionButton busy={busy === "save"} submit>Add agent</ActionButton>
           </p>
         </form>
       </Card>

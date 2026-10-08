@@ -68,7 +68,7 @@ export default function Team() {
             <option value="admin">Manager (admin)</option>
             <option value="owner">Owner</option>
           </select>
-          <ActionButton busy={busy}>Send invite</ActionButton>
+          <ActionButton busy={busy} submit>Send invite</ActionButton>
         </form>
         <p className="muted">Owner → app Owner · admin → Manager · member → CSR (enforced by the API from the JWT).</p>
       </Card>

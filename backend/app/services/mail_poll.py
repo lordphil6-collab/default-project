@@ -35,7 +35,7 @@ async def poll_mailbox(s, box) -> dict:
                 await s.flush()
             parsed = qmod.parse_quote_text(m["body_text"])
             s.add(AgentQuotation(
-                org_id=box.org_id, rfq_id=rfq.id, agent=agent.company, currency=parsed["currency"],
+                org_id=box.org_id, rfq_id=rfq.id, agent=agent.company, agent_id=agent.id, currency=parsed["currency"],
                 freight=parsed["charges"]["freight"] or 0.0, origin_charges=parsed["charges"]["origin"],
                 destination_charges=parsed["charges"]["destination"],
                 other_charges=parsed["charges"]["other"] or 0.0,

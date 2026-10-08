@@ -21,17 +21,19 @@ export function ActionButton({
   children,
   onClick,
   busy,
+  submit,
 }: {
   secondary?: boolean;
   children: React.ReactNode;
   onClick?: () => void;
   busy?: boolean;
+  submit?: boolean;
 }) {
   return (
     <button
       className={secondary ? "btn sec" : "btn"}
       onClick={onClick}
-      type="button"
+      type={submit ? "submit" : "button"}
       disabled={busy}
       style={busy ? { opacity: 0.6 } : undefined}
     >

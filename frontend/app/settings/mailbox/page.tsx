@@ -67,7 +67,7 @@ export default function MailboxSettings() {
           <input aria-label="IMAP host" value={form.host} onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))} />
           <input aria-label="Username" placeholder="you@gmail.com" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} />
           <input aria-label="App password" type="password" placeholder="app password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
-          <ActionButton busy={busy === "connect"}>Connect</ActionButton>
+          <ActionButton busy={busy === "connect"} submit>Connect</ActionButton>
         </form>
         <p className="muted">Gmail: Google Account → Security → 2-Step → App passwords. Outlook: account.microsoft.com → Security → App passwords.</p>
       </Card>

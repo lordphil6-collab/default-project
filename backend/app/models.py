@@ -120,6 +120,7 @@ class AgentQuotation(Base):
     org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id"))
     rfq_id: Mapped[str] = mapped_column(String(36), ForeignKey("rfqs.id"))
     agent: Mapped[str] = mapped_column(String(200), default="")
+    agent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("agents.id"), nullable=True)
     currency: Mapped[str] = mapped_column(String(8), default="USD")
     freight: Mapped[float] = mapped_column(Float, default=0.0)
     origin_charges: Mapped[float | None] = mapped_column(Float, nullable=True)  # None = Unknown

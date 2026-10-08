@@ -6,6 +6,31 @@ never invents precision.
 """
 import statistics
 
+from sqlalchemy import select
+
+from ..models import AgentQuotation, RFQ, Situation
+
+
+async def org_history(s, org_id: str) -> list[dict]:
+    """Identifiable past totals with lane + agent context."""
+    rows = ((await s.execute(
+        select(AgentQuotation, RFQ, Situation)
+        .join(RFQ, AgentQuotation.rfq_id == RFQ.id)
+        .join(Situation, RFQ.situation_id == Situation.id)
+        .where(AgentQuotation.org_id == org_id)
+        .limit(2000)
+    )).all())
+    out = []
+    for aq, _rfq, sit in rows:
+        ship = sit.shipment or {}
+        total = None
+        if aq.freight is not None and aq.destination_charges is not None:
+            total = round(aq.freight + (aq.origin_charges or 0.0)
+                          + aq.destination_charges + (aq.other_charges or 0.0), 2)
+        out.append({"agent": aq.agent, "rfq_id": aq.rfq_id, "origin": ship.get("origin"), "destination": ship.get("destination"),
+                    "mode": ship.get("mode"), "total": total, "transit_days": aq.transit_days})
+    return out
+
 
 def _lane(q: dict) -> str:
     return f"{(q.get('origin') or '').strip().lower()}>{(q.get('destination') or '').strip().lower()}"

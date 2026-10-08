@@ -72,7 +72,7 @@ export default function Admin() {
             <option value="past_due">past_due</option>
             <option value="cancelled">cancelled</option>
           </select>
-          <ActionButton busy={busy}>Set entitlement</ActionButton>
+          <ActionButton busy={busy} submit>Set entitlement</ActionButton>
         </form>
       </Card>
       <Card title={`Audit trail (${audit.length})`}>

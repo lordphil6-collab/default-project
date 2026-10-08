@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import CurrentUser, get_current_user
-from ..models import AgentQuotation, RFQ
+from ..models import Agent, AgentQuotation, RFQ
 from ..services import quotation as q
 from ..services.parse_files import extract_text
 from .intake import _session
@@ -14,6 +14,7 @@ router = APIRouter()
 
 class IngestIn(BaseModel):
     agent: str
+    agent_id: str | None = None  # explicit link; else matched by name/email
     body_text: str = ""
     # structured override wins over parsed text when provided
     freight: float | None = None
@@ -56,6 +57,14 @@ async def ingest(
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found in org")
     parsed = q.parse_quote_text(payload.body_text) if payload.body_text else None
+    agent_id = payload.agent_id
+    if agent_id is None:
+        want = (payload.agent or "").strip().lower()
+        if want:
+            hit = ((await s.execute(select(Agent).where(Agent.org_id == user.org_id))).scalars().all())
+            match = next((a for a in hit
+                          if a.company.strip().lower() == want or (a.email or "").strip().lower() == want), None)
+            agent_id = match.id if match else None
     freight = payload.freight if payload.freight is not None else (parsed["charges"]["freight"] if parsed else 0.0)
     origin = (
         payload.origin_charges
@@ -76,6 +85,7 @@ async def ingest(
         org_id=user.org_id,
         rfq_id=rfq.id,
         agent=payload.agent,
+        agent_id=agent_id,
         currency=payload.currency if payload.currency != "USD" else (parsed["currency"] if parsed else "USD"),
         freight=freight or 0.0,
         origin_charges=origin,
@@ -134,4 +144,16 @@ async def compare(rfq_id: str, user: CurrentUser = Depends(get_current_user), s:
          "validity_days": r.validity_days, "transit_days": r.transit_days}
         for r in rows
     ]
-    return q.compare_quotes(quotes)
+    result = q.compare_quotes(quotes)
+    # Outlier flags vs lane history (needs the situation's lane, not this RFQ's own quotes).
+    from ..models import Situation as _Sit
+    from ..services.rates import guideline as _guideline, org_history as _org_history
+
+    sit = ((await s.execute(select(_Sit).where(_Sit.id == rfq.situation_id))).scalars().first())
+    if sit is not None:
+        hist = [h for h in await _org_history(s, user.org_id) if h.get("rfq_id") != rfq.id]
+        g = _guideline(sit.shipment or {}, hist)
+        if g.get("available"):
+            result["rows"] = q.flag_outliers(result["rows"], g.get("typical"))
+            result["lane_typical"] = g.get("typical")
+    return result

@@ -58,7 +58,7 @@ export default function Pricing() {
             <option value="combined">combined</option>
           </select>
           <input aria-label="Value" style={{ width: 90 }} value={form.value} onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))} />
-          <ActionButton busy={busy}>Save rule</ActionButton>
+          <ActionButton busy={busy} submit>Save rule</ActionButton>
         </form>
       </Card>
       <Card title={`Rules (${rows.length})`}>
