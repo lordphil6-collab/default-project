@@ -1,19 +1,8 @@
 import "./globals.css";
 import { SessionBar, TrialPill } from "../components/session-bar";
+import { Nav } from "../components/nav";
 
 export const metadata = { title: "AI Quotation Desk", description: "Phase 1 design system" };
-
-const NAV = [
-  ["Dashboard", "/", true],
-  ["Situations", "/situations", false],
-  ["Agents", "/agents", false],
-  ["Inbox", "/inbox", false],
-  ["Pricing", "/pricing", false],
-  ["Billing", "/billing", false],
-  ["Follow-ups", "/follow-ups", false],
-  ["Exceptions", "/exceptions", false],
-  ["Design system", "/design-system", false],
-] as const;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -26,13 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SessionBar />
         </div>
         <div className="shell">
-          <nav className="card nav" aria-label="Primary">
-            {NAV.map(([label, href, on]) => (
-              <a key={label} href={href} className={on ? "on" : ""}>
-                {label}
-              </a>
-            ))}
-          </nav>
+          <Nav />
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>{children}</div>
           <aside style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div className="card">

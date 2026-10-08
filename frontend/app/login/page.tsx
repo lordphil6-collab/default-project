@@ -24,7 +24,7 @@ export default function Login() {
         {error ? <p className="pill red">{error}</p> : null}
         <button className="btn" type="submit">Sign in</button>
       </form>
-      <p className="muted">New company? Your owner creates the organization, then invites you. Trial starts on signup.</p>
+      <p className="muted">New company? <a href="/signup">Create account + trial</a> — your owner creates the organization, then invites you. Trial starts on signup.</p>
     </div>
   );
 }

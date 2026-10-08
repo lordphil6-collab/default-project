@@ -188,3 +188,4 @@ class AuditLog(Base):
     actor: Mapped[str] = mapped_column(String(320), default="")
     action: Mapped[str] = mapped_column(String(200))
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
