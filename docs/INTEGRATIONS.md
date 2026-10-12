@@ -58,9 +58,16 @@ Verify: upload a PDF in any RFQ card → stored; re-download path in locator.
 
 Purpose: read photographed/scanned quotations. Install: `winget install UB-Mannheim.TesseractOCR`, add `tesseract.exe` to PATH, `pip install pytesseract`, then extend `services/parse_files.py:extract_text` image branch (currently a clear 422). Verify with a photo quote → extracted totals.
 
-## 8. Carrier rate feeds (Maersk Spot, Freightos, airlines)
+## 8. Carrier rate feeds (DHL Express live; others need contracts)
 
-Need your carrier contracts + API keys — no code conjures those. Plug point is single: `services/rates.py` history source. Add `services/carriers/<name>.py` returning `{agent, total, transit_days, ...}` dicts, merge into the pool — comparison, badges, guidelines, quote page work unchanged. Until then: `/agents` + seeded sample lines (marked SAMPLE).
+DHL Express works out of the box once you add your account (see docs/CARRIERS.md):
+`DHL_API_USER`, `DHL_API_PASSWORD`, `DHL_ACCOUNT_NUMBER` (+ optional
+`DHL_API_BASE`). Get Quote → "Live carrier rates" queries it alongside history;
+unconfigured feeds report skipped. Any further feed (Maersk Spot, airline APIs,
+forwarder networks) is one file in `backend/app/services/carriers/` — same
+`{carrier, service, total, transit_days}` shape, same fan-out. Until then:
+`/agents` + seeded sample lines (marked SAMPLE). Note: Freightos has no
+self-serve quote API, so there is no Freightos adapter — only contracted feeds.
 
 ## 9. Hosting the frontend — Netlify
 

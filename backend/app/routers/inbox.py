@@ -72,3 +72,40 @@ async def inbox(user: CurrentUser = Depends(get_current_user), s: AsyncSession =
                         "status": sit.status if sit else "?", "channel": msgs[0].channel,
                         "preview": msgs[0].body[:160]})
     return out
+
+
+@router.post("/conversations/{cid}/brief")
+async def conversation_brief(cid: str, user: CurrentUser = Depends(get_current_user),
+                             s: AsyncSession = Depends(_session)):
+    """Synthesize a thread into an RFQ-ready brief for agents.
+
+    Collects every message, extracts the shipment, flags what's missing, and
+    suggests the next action — so a CSR can hand database agents a clean,
+    organized brief instead of raw inbox text.
+    """
+    from ..services import understanding as u
+
+    conv = ((await s.execute(select(Conversation).where(
+        Conversation.id == cid, Conversation.org_id == user.org_id))).scalars().first())
+    if not conv:
+        raise HTTPException(status_code=404, detail="Not found")
+    msgs = ((await s.execute(select(Message).where(Message.conversation_id == cid).limit(200)))
+            .scalars().all())
+    if not msgs:
+        raise HTTPException(status_code=422, detail="No messages to synthesize")
+    combined = "\n\n".join(f"[{m.channel}] {m.body}" for m in msgs)[:6000]
+    ext = u.extract_shipment(combined)
+    missing = u.detect_missing(ext)
+    channels = sorted({m.channel for m in msgs})
+    return {
+        "conversation_id": cid,
+        "situation_id": conv.situation_id,
+        "messages": len(msgs),
+        "channels": channels,
+        "combined": combined,
+        "extraction": ext,
+        "missing": missing,
+        "summary": u.summarize(ext, missing),
+        "next_action": u.recommend_next_action(missing),
+        "default_channel": channels[0] if channels else "web",
+    }

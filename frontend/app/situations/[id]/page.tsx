@@ -35,6 +35,8 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [extractBody, setExtractBody] = useState("");
   const [ingest, setIngest] = useState<Record<string, { agent: string; body: string }>>({});
   const [markup, setMarkup] = useState({ quotation_id: "", kind: "percent", value: "12" });
+  const [ruleId, setRuleId] = useState("");
+  const [rules, setRules] = useState<{ id: string; name: string; kind: string; value: number }[]>([]);
   const [due, setDue] = useState("");
   const [sendTo, setSendTo] = useState("");
   const [sendChannel, setSendChannel] = useState("logged");
@@ -82,6 +84,13 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
         if (r.ok) setRole(((await r.json()) as { role?: string }).role || null);
       } catch {
         setRole(null);
+      }
+    })();
+    (async () => {
+      try {
+        setRules(await api<{ id: string; name: string; kind: string; value: number }[]>("/markup-rules"));
+      } catch {
+        setRules([]); // pricing page covers rule setup; ad-hoc markup still works
       }
     })();
   }, []);
@@ -349,6 +358,16 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             <option value="minimum">minimum %</option>
           </select>
           <input aria-label="Markup value" placeholder="12" style={{ width: 80 }} value={markup.value} onChange={(e) => setMarkup((m) => ({ ...m, value: e.target.value }))} />
+          {rules.length > 0 ? (
+            <select aria-label="Pricing rule (overrides kind/value)" value={ruleId} onChange={(e) => setRuleId(e.target.value)}>
+              <option value="">Ad-hoc markup…</option>
+              {rules.map((r) => (
+                <option key={r.id} value={r.id}>{r.name} — {r.kind} {r.value}</option>
+              ))}
+            </select>
+          ) : (
+            <a href="/pricing" className="muted" style={{ alignSelf: "center" }}>Saved rules →</a>
+          )}
           <ActionButton
             busy={busy === "price"}
             secondary
@@ -361,7 +380,9 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
               act("price", "Customer quote priced", () =>
                 api("/customer-quotes", {
                   method: "POST",
-                  body: JSON.stringify({ situation_id: sid, agent_quotation_id: qid, markup_kind: markup.kind, markup_value: Number(markup.value) || 0 }),
+                  body: JSON.stringify(ruleId
+                    ? { situation_id: sid, agent_quotation_id: qid, markup_rule_id: ruleId }
+                    : { situation_id: sid, agent_quotation_id: qid, markup_kind: markup.kind, markup_value: Number(markup.value) || 0 }),
                 })
               );
             }}

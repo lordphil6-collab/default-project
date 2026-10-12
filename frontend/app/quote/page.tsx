@@ -9,6 +9,8 @@ type Guideline = {
   count?: number; options?: Option[]; note?: string;
 };
 type Match = { agent_id: string; agent: string; score: number; reasons: string[] };
+type LiveRate = { carrier: string; service: string; total: number | null; currency: string; transit_days: number | null; source: string; note?: string };
+type Live = { adapters: string[]; rates: LiveRate[]; skipped: string[]; errors: string[] };
 
 export default function Quote() {
   const [origin, setOrigin] = useState("");
@@ -20,6 +22,11 @@ export default function Quote() {
   const [guide, setGuide] = useState<Guideline | null>(null);
   const [matched, setMatched] = useState<Match[]>([]);
   const [sid, setSid] = useState<string | null>(null);
+  const [fromCC, setFromCC] = useState("");
+  const [toCC, setToCC] = useState("");
+  const [weight, setWeight] = useState("");
+  const [live, setLive] = useState<Live | null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -124,6 +131,73 @@ export default function Quote() {
           ))}
         </Card>
       ) : null}
+
+      <Card title="Live carrier rates — DHL Express + connected feeds">
+        <p className="muted">Account rates straight from the carrier (indicative). Needs ISO country codes — e.g. CN → NG.</p>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setLiveBusy(true);
+            setError("");
+            try {
+              const qs = new URLSearchParams({
+                ...(sid ? { situation_id: sid } : {}),
+                origin_country: fromCC.trim().toUpperCase(),
+                destination_country: toCC.trim().toUpperCase(),
+                origin_city: origin.trim(),
+                destination_city: destination.trim(),
+                ...(weight.trim() ? { weight_kg: weight.trim() } : {}),
+              }).toString();
+              setLive(await api<Live>(`/rates/live?${qs}`));
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Live rates failed");
+            } finally {
+              setLiveBusy(false);
+            }
+          }}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}
+        >
+          <input aria-label="Origin country code" placeholder="CN" style={{ width: 70 }} value={fromCC} onChange={(e) => setFromCC(e.target.value)} />
+          <input aria-label="Destination country code" placeholder="NG" style={{ width: 70 }} value={toCC} onChange={(e) => setToCC(e.target.value)} />
+          <input aria-label="Weight kg" placeholder="kg (optional)" style={{ width: 110 }} value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <button className="btn sec" type="submit" disabled={liveBusy}>
+            Check live rates{liveBusy ? " …" : ""}
+          </button>
+        </form>
+        {live ? (
+          <>
+            {live.rates.length > 0 ? (
+              <table className="cmp">
+                <caption className="sr-only">Live carrier rates</caption>
+                <thead>
+                  <tr>
+                    <th>Carrier</th>
+                    <th>Service</th>
+                    <th>Total</th>
+                    <th>Transit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {live.rates.map((r, i) => (
+                    <tr key={`${r.carrier}-${r.service}-${i}`}>
+                      <td><b>{r.carrier}</b> <StatusPill tone="green">live</StatusPill></td>
+                      <td>{r.service}</td>
+                      <td className="mono">{r.total != null ? `${r.currency} ${r.total.toLocaleString()}` : "on request"}</td>
+                      <td>{r.transit_days ? `${r.transit_days}d` : "?"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="muted">No live rates — {live.skipped.concat(live.errors).join(" · ") || "no feeds responded"}.</p>
+            )}
+            {live.skipped.length > 0 && live.rates.length > 0 ? (
+              <p className="muted">Skipped: {live.skipped.join(" · ")}</p>
+            ) : null}
+            <p className="muted">Feeds: {live.adapters.join(", ") || "none"}. Connect DHL in docs/CARRIERS.md.</p>
+          </>
+        ) : null}
+      </Card>
     </>
   );
 }

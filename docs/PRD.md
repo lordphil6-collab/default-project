@@ -1,8 +1,15 @@
 # Product Requirements Document — Freight Customer Service Desk
 **Living document** (supersedes `PRODUCT REQUIREMENTS DOCUMENT.pdf`, kept as v1 record).
-Last updated: 2026-10-12 (v4). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
+Last updated: 2026-10-12 (v5). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
 
 ## Changelog
+- v5 (live carriers + inbox synthesis): carrier adapter framework
+  (`backend/app/services/carriers/`) with timeout-isolated fan-out; DHL Express
+  MyDHL Rating adapter live (account-gated, skipped honestly when unconfigured);
+  `GET /rates/live` + "Live carrier rates" card on Get Quote; pricing-rule
+  dropdown on Price quote (uses saved `/pricing` rules); inbox thread → RFQ
+  brief synthesis (`POST /conversations/{id}/brief`) with one-click situation
+  creation for agents to quote.
 - v4 (UX overhaul): all §12 review gaps that were UI-fixable are now shipped —
   working global search, quotation picker (no more hand-typed IDs), role badge +
   gated actions, trial-days pill, nav badges, inbox reply, follow-up completion,
@@ -28,8 +35,10 @@ What next? Added: **a sixth — what should the customer see?** (public portal).
 | # | Module | Status | Where |
 |---|--------|--------|-------|
 | 1 | Unified Enquiry Desk (Email IMAP, web form; 🔶 WhatsApp outbound only) | ✅/🔶 | `POST /intake`, `/public/enquiries`, `/quote`, `/inbox` |
+| 1b | **Inbox RFQ-brief synthesis for agents** | ✅ NEW | `POST /conversations/{id}/brief`, Inbox brief card → situation |
 | 2 | Situation Intelligence | ✅ | `/situations`, `/situations/[id]` |
 | 3 | RFQ Intelligence + **agent matching & distribution** | ✅ | `/agents`, match, recipients, send |
+| 3b | **Live carrier feeds (DHL Express + adapter fan-out)** | ✅ NEW | `GET /rates/live`, Get Quote live card, `services/carriers/` |
 | 4 | Comparison (confidence + explained rec + **rank/badges**) | ✅ | compare table, cheapest/fastest |
 | 5 | Markup + customer quote + **rules CRUD + delivery** | ✅ | `/pricing`, approve/send + channel |
 | 6 | Follow-up + exceptions + Today dashboard | ✅ | `/follow-ups`, `/exceptions`, `/dashboard/today` |
@@ -83,8 +92,8 @@ earlier); no quote PDF export ⬜ (still open); no delivered notifications 🔶
 (worker sends reminders; in-app notification center still open); demo-grade
 role switch ✅ (real role badge + gated Approve); quotations unlinked to agents
 ✅ (agent link + dropdown picker); guideline display-only ✅ (estimate actions
-on every page); quote form ignores saved rules 🔶 (rule dropdown still uses
-kind/value inputs — rules apply at pricing time); read-only inbox ✅ (reply
+on every page); quote form ignores saved rules ✅ (pricing-rule dropdown on
+Price quote, ad-hoc fallback kept); read-only inbox ✅ (reply
 box shippable via new endpoint); one-way tracking 🔶 (auto-lookup added;
 customer replies still one-way); no drill-downs/customer-360/audit timeline UI
 🔶 (nav badges + filters added; customer-360 still open); no public rate limits

@@ -22,6 +22,12 @@ export default function Inbox() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [channel, setChannel] = useState("all");
+  const [brief, setBrief] = useState<null | {
+    situation_id: string; messages: number; channels: string[]; combined: string;
+    extraction: Record<string, unknown>; missing: string[]; summary: string;
+    next_action: string; default_channel: string;
+  }>(null);
+  const [briefBusy, setBriefBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -38,11 +44,47 @@ export default function Inbox() {
   async function show(cid: string) {
     setError("");
     setReply("");
+    setBrief(null);
     try {
       setOpen(cid);
       setMsgs(await api<Msg[]>(`/conversations/${cid}/messages`));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
+    }
+  }
+
+  async function prepare() {
+    if (!open) return;
+    setBriefBusy(true);
+    setError("");
+    try {
+      setBrief(await api(`/conversations/${open}/brief`, { method: "POST" }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setBriefBusy(false);
+    }
+  }
+
+  async function createFromBrief() {
+    if (!open || !brief) return;
+    setSending(true);
+    setError("");
+    try {
+      const ch = brief.default_channel === "email" || brief.default_channel === "whatsapp" ? brief.default_channel : "web";
+      const sit = await api<{ id: string }>("/intake", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_name: `Inbox thread ${open.slice(0, 8)}`,
+          channel: ch,
+          body: brief.combined.slice(0, 2000),
+        }),
+      });
+      window.location.href = `/situations/${sit.id}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -112,7 +154,24 @@ export default function Inbox() {
             <button className="btn" type="submit" disabled={sending || !reply.trim()}>
               Reply{sending ? " …" : ""}
             </button>
+            <button className="btn sec" type="button" disabled={briefBusy} onClick={prepare}>
+              Prepare RFQ brief{briefBusy ? " …" : ""}
+            </button>
           </form>
+          {brief ? (
+            <div className="card" style={{ marginTop: 8 }}>
+              <p><b>RFQ brief</b> — {brief.messages} message(s), {brief.missing.length} missing</p>
+              <p className="muted">{brief.summary}</p>
+              {brief.missing.length > 0 ? <p className="muted">Missing: {brief.missing.join(", ")}</p> : null}
+              <p className="muted">Next: {brief.next_action}</p>
+              <p>
+                <button className="btn" type="button" disabled={sending} onClick={createFromBrief}>
+                  Create situation from brief
+                </button>{" "}
+                <a href={`/situations/${brief.situation_id}`}>Open linked situation →</a>
+              </p>
+            </div>
+          ) : null}
         </Card>
       ) : null}
     </>
