@@ -16,7 +16,9 @@ from .mail import decrypt_secret, fetch_since, rfq_token
 
 async def poll_mailbox(s, box) -> dict:
     password = decrypt_secret(box.secret)
-    msgs, top = await asyncio.to_thread(fetch_since, box.host, box.username, password, box.last_uid or 0)
+    msgs, top = await asyncio.to_thread(
+        fetch_since, box.host, box.username, password, box.last_uid or 0,
+        getattr(box, "port", 993) or 993, getattr(box, "use_ssl", True))
     counts = {"fetched": len(msgs), "auto_quotations": 0, "situations": 0}
     for m in msgs:
         token = rfq_token(m["subject"])

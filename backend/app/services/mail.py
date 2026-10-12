@@ -66,9 +66,19 @@ def parse_eml(raw: bytes) -> dict:
     return {"from": sender, "subject": subject, "body_text": "\n".join(parts).strip()[:8000]}
 
 
-def fetch_since(host: str, username: str, password: str, last_uid: int) -> tuple[list[dict], int]:
-    """IMAP UID fetch; returns (messages, new_last_uid). Pure fetch, no deletes."""
-    box = imaplib.IMAP4_SSL(host)
+def fetch_since(host: str, username: str, password: str, last_uid: int,
+                port: int = 993, use_ssl: bool = True) -> tuple[list[dict], int]:
+    """IMAP UID fetch; returns (messages, new_last_uid). Pure fetch, no deletes.
+
+    SSL (993) is the default for Gmail/Outlook/most webmail. Plain + STARTTLS
+    (143) covers hosts without implicit TLS. Auth/connection errors propagate
+    so the route can map them to 502 instead of crashing.
+    """
+    if use_ssl:
+        box = imaplib.IMAP4_SSL(host, port or 993)
+    else:
+        box = imaplib.IMAP4(host, port or 143)
+        box.starttls()
     try:
         box.login(username, password)
         box.select("INBOX", readonly=True)

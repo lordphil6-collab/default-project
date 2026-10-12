@@ -1,7 +1,7 @@
 """Phase 2 domain models. Every tenant row carries org_id (Better Auth organization)."""
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from .db import Base
 
@@ -103,6 +103,8 @@ class Mailbox(Base):
     secret: Mapped[str] = mapped_column(Text, default="")  # Fernet-encrypted app password
     last_uid: Mapped[int] = mapped_column(default=0)
     status: Mapped[str] = mapped_column(String(32), default="Active")
+    port: Mapped[int] = mapped_column(Integer, default=993)
+    use_ssl: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class RFQRecipient(Base):

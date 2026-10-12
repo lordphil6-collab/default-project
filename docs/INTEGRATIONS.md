@@ -7,9 +7,14 @@ Each section: purpose → env vars → steps → verify → fallback.
 Conventions: put secrets in shell env or `.env` (git-ignored, never commit).
 After setting vars, restart the API (`uvicorn ... --port 8000`).
 
-## 1. Inbound email — Gmail / Outlook (IMAP)
+## 1. Inbound email — Gmail / Outlook / webmail (IMAP)
 
 Purpose: agents reply to RFQs, customers write in; replies auto-ingest.
+Three providers, one interface (app → Mailbox → provider buttons):
+- **Gmail**: host `imap.gmail.com`, port 993, SSL.
+- **Outlook/Microsoft 365**: host `outlook.office365.com`, port 993, SSL.
+- **Webmail/other**: any IMAP host — port `993`/SSL by default, or `143`+STARTTLS
+  for hosts without implicit TLS (set both on connect).
 Env: `MAIL_SECRET_KEY` (required, generates below), per-mailbox creds via UI.
 Steps:
 1. `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` → `MAIL_SECRET_KEY`.

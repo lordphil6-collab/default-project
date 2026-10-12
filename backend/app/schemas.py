@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class IntakeIn(BaseModel):
     customer_name: str = Field(min_length=1, max_length=200)
-    channel: str = Field(pattern="^(email|whatsapp)$")
+    channel: str = Field(pattern="^(email|whatsapp|web)$")
     body: str = Field(min_length=1)
     external_id: str = ""
 
@@ -14,3 +14,6 @@ class SituationOut(BaseModel):
     status: str
     missing: list[str] = []
     next_action: str = ""
+    origin: str = ""
+    destination: str = ""
+    mode: str = ""

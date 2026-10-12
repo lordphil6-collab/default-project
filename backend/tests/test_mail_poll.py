@@ -26,7 +26,7 @@ async def test_reply_token_creates_quotation_and_responded(monkeypatch):
                            agent_id="a1", status="Sent"))
         await s.commit()
 
-    def fake_fetch(host, username, password, last_uid):
+    def fake_fetch(host, username, password, last_uid, *a):
         assert password == "pw"
         return ([{"uid": 7, "from": "Agent A <rates@agenta.test>",
                   "subject": "Re: [RFQ:1d7cbf4c] rates",
@@ -85,7 +85,7 @@ async def test_repeat_poll_creates_no_duplicates(monkeypatch):
            "subject": "Re: [RFQ:1d7cbf4c] rates",
            "body_text": "Ocean Freight $1,850\nDestination Charges $650"}
 
-    def fake_fetch(host, username, password, last_uid):
+    def fake_fetch(host, username, password, last_uid, *a):
         # Mirror the real UID {last_uid+1}:* semantics: nothing new, nothing back.
         if last_uid >= 7:
             return ([], last_uid)
@@ -118,7 +118,7 @@ async def test_unknown_token_skipped_but_watermark_advances(monkeypatch):
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    def fake_fetch(host, username, password, last_uid):
+    def fake_fetch(host, username, password, last_uid, *a):
         return ([{"uid": 3, "from": "x@y.test", "subject": "Re: [RFQ:deadbeef] ?",
                  "body_text": "hello"}], 3)
 
@@ -144,7 +144,7 @@ async def test_fetch_failure_propagates_for_502_mapping(monkeypatch):
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    def boom(host, username, password, last_uid):
+    def boom(host, username, password, last_uid, *a):
         raise OSError("connect ECONNREFUSED")
 
     monkeypatch.setattr(mp, "fetch_since", boom)

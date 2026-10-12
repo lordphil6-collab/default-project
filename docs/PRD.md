@@ -1,8 +1,17 @@
 # Product Requirements Document — Freight Customer Service Desk
 **Living document** (supersedes `PRODUCT REQUIREMENTS DOCUMENT.pdf`, kept as v1 record).
-Last updated: 2026-10-12 (v5). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
+Last updated: 2026-10-12 (v6). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
 
 ## Changelog
+- v6 (connected pipeline): intake now synthesizes on entry (real extractor, not
+  substring matching) and accepts the `web` channel Get Quote + inbox-brief use;
+  situations carry origin/destination/mode and render as a **Pipeline** table;
+  mailbox providers Gmail/Outlook/webmail with per-host ports + STARTTLS
+  (migration 0008); agent-feedback synthesis endpoint
+  (`GET /rfqs/{id}/recommendation`) prices the cheapest identifiable quote with
+  the updatable pricing rule + lane verdict, one click applies it as the
+  customer quote. Full loop: inbox/brief → pipeline → RFQ → email agents +
+  live feeds → replies auto-ingest → analyze → rule markup → approve → send.
 - v5 (live carriers + inbox synthesis): carrier adapter framework
   (`backend/app/services/carriers/`) with timeout-isolated fan-out; DHL Express
   MyDHL Rating adapter live (account-gated, skipped honestly when unconfigured);

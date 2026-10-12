@@ -74,4 +74,4 @@ export type TodayCounts = {
   exceptions: number;
 };
 
-export type Situation = { id: string; status: string; missing: string[]; next_action: string };
+export type Situation = { id: string; status: string; missing: string[]; next_action: string; origin?: string; destination?: string; mode?: string };

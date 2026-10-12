@@ -127,6 +127,44 @@ async def list_quotations(rfq_id: str, user: CurrentUser = Depends(get_current_u
     return out
 
 
+@router.get("/rfqs/{rfq_id}/recommendation")
+async def recommendation(rfq_id: str, user: CurrentUser = Depends(get_current_user),
+                         s: AsyncSession = Depends(_session)):
+    """Synthesize all agent feedback into ONE priced recommendation.
+
+    Reads every quotation on the RFQ (email auto-ingest, uploads, manual),
+    prices the cheapest identifiable total with the org's pricing rule, and
+    benchmarks against lane history. Rules update in /pricing — no code change.
+    """
+    from ..models import MarkupRule, RFQRecipient
+    from ..services import recommend as rec
+
+    rfq = ((await s.execute(select(RFQ).where(
+        RFQ.id == rfq_id, RFQ.org_id == user.org_id))).scalars().first())
+    if not rfq:
+        raise HTTPException(status_code=404, detail="RFQ not found in org")
+    rows = ((await s.execute(select(AgentQuotation).where(
+        AgentQuotation.rfq_id == rfq.id))).scalars().all())
+    quotes = [{"id": r.id, "agent": r.agent, "currency": r.currency,
+               "charges": {"freight": r.freight, "origin": r.origin_charges,
+                           "destination": r.destination_charges, "other": r.other_charges},
+               "transit_days": r.transit_days} for r in rows]
+    rules = ((await s.execute(select(MarkupRule).where(
+        MarkupRule.org_id == user.org_id))).scalars().all())
+    rule_dicts = [{"id": r.id, "name": r.name, "kind": r.kind, "value": r.value,
+                   "min_margin": r.min_margin} for r in rules]
+    recs = ((await s.execute(select(RFQRecipient).where(
+        RFQRecipient.rfq_id == rfq.id))).scalars().all())
+    responded = sum(1 for r in recs if r.status == "Responded")
+
+    out = rec.recommend(quotes, rule_dicts)
+    out["rfq_id"] = rfq.id
+    out["rfq_status"] = rfq.status
+    out["feedback"] = {"agents_contacted": len(recs), "responded": responded,
+                       "quotations": len(rows)}
+    return out
+
+
 @router.get("/rfqs/{rfq_id}/compare")
 async def compare(rfq_id: str, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)):
     rfq = (

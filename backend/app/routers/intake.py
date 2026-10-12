@@ -5,6 +5,7 @@ from ..auth import CurrentUser, get_current_user
 from ..db import make_async_session_factory
 from ..models import Conversation, Customer, Message, Situation
 from ..schemas import IntakeIn, SituationOut
+from ..services import understanding as u
 from ..services.audit import log_action
 from ..services.billing import require_entitlement
 
@@ -21,15 +22,18 @@ async def intake(payload: IntakeIn, user: CurrentUser = Depends(get_current_user
     customer = Customer(org_id=user.org_id, name=payload.customer_name)
     s.add(customer)
     await s.flush()
-    # Phase 2: naive missing detection. AI extraction lands Phase 4.
-    missing = [f for f in ("weight", "pickup") if f not in payload.body.lower()]
+    # Synthesize on entry: extract defined fields so the pipeline table
+    # populates immediately and Get Quote can consume the situation at once.
+    ext = u.extract_shipment(payload.body)
+    missing = u.detect_missing(ext)
+    next_action = u.recommend_next_action(missing)
     situation = Situation(
         org_id=user.org_id,
         customer_id=customer.id,
-        status="New",
-        shipment={"raw": payload.body[:500]},
+        status="New" if missing else "RFQ In Progress",
+        shipment={"raw": payload.body[:500], **{k: v for k, v in ext.items() if k != "confidence"}},
         missing=missing,
-        next_action="Review missing info, then create RFQ",
+        next_action=next_action,
     )
     s.add(situation)
     await s.flush()
@@ -50,4 +54,7 @@ async def intake(payload: IntakeIn, user: CurrentUser = Depends(get_current_user
         detail={"channel": payload.channel, "situation_id": situation.id, "missing": missing},
     )
     await s.commit()
-    return SituationOut(id=situation.id, status=situation.status, missing=missing, next_action=situation.next_action)
+    ship = situation.shipment or {}
+    return SituationOut(id=situation.id, status=situation.status, missing=missing, next_action=situation.next_action,
+                        origin=str(ship.get("origin") or ""), destination=str(ship.get("destination") or ""),
+                        mode=str(ship.get("mode") or ""))

@@ -43,7 +43,7 @@ function SituationsInner() {
 
   return (
     <>
-      <Card title={`Situations (${filtered.length})`}>
+      <Card title={`Pipeline — synthesized requests (${filtered.length})`}>
         {loading ? <p className="muted">Loading…</p> : null}
         {error ? <p className="pill red" role="alert">{error}</p> : null}
         {q ? <p className="muted">Search: “{params.get("q")}” — <a href="/situations">clear</a></p> : null}
@@ -57,22 +57,42 @@ function SituationsInner() {
         </div>
         {!loading && !error && rows.length === 0 ? (
           <p className="muted">
-            None yet — capture one from the <a href="/">dashboard</a>.
+            Empty pipeline — capture an enquiry from the <a href="/">dashboard</a>, connect a{" "}
+            <a href="/settings/mailbox">mailbox</a>, or synthesize an <a href="/inbox">inbox thread</a>.
           </p>
         ) : null}
         {!loading && !error && rows.length > 0 && filtered.length === 0 ? (
-          <p className="muted">No situations match — try clearing the search or filter.</p>
+          <p className="muted">No requests match — try clearing the search or filter.</p>
         ) : null}
-        {filtered.slice(0, shown).map((s) => (
-          <div key={s.id} className="card" style={{ marginBottom: 10 }}>
-            <p>
-              <b className="mono">{s.id.slice(0, 8)}</b> <StatusPill tone="amber">{s.status}</StatusPill>{" "}
-              <a href={`/situations/${s.id}`}>Open →</a>
-            </p>
-            {s.missing.length > 0 ? <p className="muted">Missing: {s.missing.join(", ")}</p> : null}
-            {s.next_action ? <p className="muted">Next: {s.next_action}</p> : null}
-          </div>
-        ))}
+        {filtered.length > 0 ? (
+          <table className="cmp">
+            <caption className="sr-only">Synthesized requests ready for quoting</caption>
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Route</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Missing</th>
+                <th>Next</th>
+                <th>Quote</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.slice(0, shown).map((s) => (
+                <tr key={s.id}>
+                  <td className="mono">{s.id.slice(0, 8)}</td>
+                  <td>{routeOf(s)}</td>
+                  <td>{s.mode || "—"}</td>
+                  <td><StatusPill tone="amber">{s.status}</StatusPill></td>
+                  <td>{s.missing.length > 0 ? s.missing.join(", ") : <span className="pill green">ready</span>}</td>
+                  <td className="muted">{s.next_action || "—"}</td>
+                  <td><a href={`/situations/${s.id}`}>Open →</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
         {filtered.length > shown ? (
           <p>
             <ActionButton secondary onClick={() => setShown((n) => n + PAGE)}>
@@ -87,8 +107,15 @@ function SituationsInner() {
 
 export default function Situations() {
   return (
-    <Suspense fallback={<Card title="Situations"><p className="muted">Loading…</p></Card>}>
+    <Suspense fallback={<Card title="Pipeline"><p className="muted">Loading…</p></Card>}>
       <SituationsInner />
     </Suspense>
   );
+}
+
+function routeOf(s: Situation): string {
+  const o = (s.origin || "").trim();
+  const d = (s.destination || "").trim();
+  if (o || d) return `${o || "?"} → ${d || "?"}`;
+  return "—";
 }

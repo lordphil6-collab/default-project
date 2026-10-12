@@ -42,6 +42,13 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [sendChannel, setSendChannel] = useState("logged");
   const [matched, setMatched] = useState<{ agent_id: string; agent: string; score: number; reasons: string[] }[]>([]);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [reco, setReco] = useState<Record<string, {
+    available: boolean; reason?: string; agent?: string; agent_quotation_id?: string;
+    agent_total?: number; currency?: string; rule?: { id: string; name: string } | null;
+    markup_amount?: number; final_price?: number; reasoning?: string; lane_verdict?: string | null;
+    unknown?: number; alternatives?: { agent: string; agent_total: number; final_price: number }[];
+    feedback?: { agents_contacted: number; responded: number; quotations: number };
+  }>>({});
   const [sharePath, setSharePath] = useState<string | null>(null);
   const [guide, setGuide] = useState<Guideline | null>(null);
   const [exc, setExc] = useState({ category: "missing_info", detail: "", owner: "", next: "" });
@@ -237,6 +244,12 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                 setCompare((c) => ({ ...c, [rfq.id]: cmp }));
               })}>
                 Compare
+              </ActionButton>{" "}
+              <ActionButton busy={busy === `rec-${rfq.id}`} secondary onClick={() => act(`rec-${rfq.id}`, "Feedback analyzed — recommendation ready", async () => {
+                const r = await api(`/rfqs/${rfq.id}/recommendation`);
+                setReco((m) => ({ ...m, [rfq.id]: r as never }));
+              })}>
+                Analyze & recommend
               </ActionButton>
             </p>
             {(quotes[rfq.id] || []).map((q) => (
@@ -287,6 +300,49 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                   </tbody>
                 </table>
               </>
+            ) : null}
+            {reco[rfq.id] ? (
+              <div className="card" style={{ marginTop: 8, borderColor: "var(--indigo)" }}>
+                <p><b>Recommended price</b></p>
+                {reco[rfq.id].available ? (
+                  <>
+                    <p>
+                      <b>{reco[rfq.id].agent}</b> at <b className="mono">{reco[rfq.id].currency} {reco[rfq.id].agent_total?.toLocaleString()}</b>
+                      {" "}→ customer <b className="mono">{reco[rfq.id].currency} {reco[rfq.id].final_price?.toLocaleString()}</b>{" "}
+                      <StatusPill tone="green">+{reco[rfq.id].markup_amount?.toLocaleString()} markup</StatusPill>
+                    </p>
+                    <p className="muted">{reco[rfq.id].reasoning}</p>
+                    <p className="muted">
+                      Rule: {reco[rfq.id].rule ? `${reco[rfq.id].rule!.name} (update in /pricing)` : "ad-hoc 12% — save a rule in /pricing"} ·{" "}
+                      Feedback: {reco[rfq.id].feedback?.responded}/{reco[rfq.id].feedback?.agents_contacted} agents responded,{" "}
+                      {reco[rfq.id].feedback?.quotations} quotes{reco[rfq.id].unknown ? `, ${reco[rfq.id].unknown} incomplete` : ""}
+                      {reco[rfq.id].lane_verdict ? ` · ${reco[rfq.id].lane_verdict}` : ""}
+                    </p>
+                    {reco[rfq.id].alternatives && reco[rfq.id].alternatives!.length > 0 ? (
+                      <p className="muted">
+                        Alternatives: {reco[rfq.id].alternatives!.map((a) => `${a.agent} → ${a.final_price.toLocaleString()}`).join(" · ")}
+                      </p>
+                    ) : null}
+                    <p>
+                      <ActionButton
+                        busy={busy === `apply-${rfq.id}`}
+                        onClick={() => act(`apply-${rfq.id}`, "Customer quote priced from recommendation", () =>
+                          api("/customer-quotes", {
+                            method: "POST",
+                            body: JSON.stringify(reco[rfq.id].rule
+                              ? { situation_id: sid, agent_quotation_id: reco[rfq.id].agent_quotation_id, markup_rule_id: reco[rfq.id].rule!.id }
+                              : { situation_id: sid, agent_quotation_id: reco[rfq.id].agent_quotation_id, markup_kind: "percent", markup_value: 12 }),
+                          })
+                        )}
+                      >
+                        Apply as customer quote
+                      </ActionButton>
+                    </p>
+                  </>
+                ) : (
+                  <p className="muted">{reco[rfq.id].reason}</p>
+                )}
+              </div>
             ) : null}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <input
