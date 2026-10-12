@@ -14,7 +14,11 @@ def _smtp_config() -> dict | None:
     host = os.getenv("SMTP_HOST", "")
     if not host:
         return None
-    return {"host": host, "port": int(os.getenv("SMTP_PORT", "587")),
+    try:
+        port = int(os.getenv("SMTP_PORT", "587"))
+    except ValueError:
+        port = 587
+    return {"host": host, "port": port,
             "user": os.getenv("SMTP_USER", ""), "password": os.getenv("SMTP_PASSWORD", ""),
             "from": os.getenv("SMTP_FROM", os.getenv("SMTP_USER", ""))}
 
@@ -42,11 +46,19 @@ def send_email(to: str, subject: str, body: str) -> dict:
     msg["From"], msg["To"], msg["Subject"] = cfg["from"], to, subject
     msg.set_content(body)
     try:
-        with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as s:
-            s.starttls()
-            if cfg["user"]:
-                s.login(cfg["user"], cfg["password"])
-            s.send_message(msg)
+        if cfg["port"] == 465:
+            # Implicit TLS (Gmail/Outlook port 465): no STARTTLS upgrade.
+            with smtplib.SMTP_SSL(cfg["host"], cfg["port"], timeout=20) as s:
+                if cfg["user"]:
+                    s.login(cfg["user"], cfg["password"])
+                s.send_message(msg)
+        else:
+            # STARTTLS (port 587 for Gmail/Outlook and most others).
+            with smtplib.SMTP(cfg["host"], cfg["port"], timeout=20) as s:
+                s.starttls()
+                if cfg["user"]:
+                    s.login(cfg["user"], cfg["password"])
+                s.send_message(msg)
         return {"channel": "email", "status": "sent", "detail": f"to {to}"}
     except Exception as exc:
         return {"channel": "email", "status": "failed", "detail": str(exc)[:300]}
