@@ -1,8 +1,14 @@
 # Product Requirements Document — Freight Customer Service Desk
 **Living document** (supersedes `PRODUCT REQUIREMENTS DOCUMENT.pdf`, kept as v1 record).
-Last updated: 2026-10-08 (v3). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
+Last updated: 2026-10-12 (v4). Status markers: ✅ shipped & live-proven · 🔶 partial · ⬜ planned.
 
 ## Changelog
+- v4 (UX overhaul): all §12 review gaps that were UI-fixable are now shipped —
+  working global search, quotation picker (no more hand-typed IDs), role badge +
+  gated actions, trial-days pill, nav badges, inbox reply, follow-up completion,
+  team member management, track auto-lookup, friendly errors, confirmations,
+  pagination/filters, a11y pass. New endpoints: `POST /conversations/{id}/messages`,
+  `POST /follow-ups/{id}/done`, `GET /api/auth/role`.
 - v1 (PDF): original 41-section MVP — CSR workspace, 6 modules, Email/WhatsApp, human approval.
 - v2: + Better Auth · + SaaS billing · + agent matching & distribution · + file
   ingest · + quote delivery · + public portal · + admin · + guideline rates.
@@ -70,19 +76,28 @@ portal is `portal_proof.py`; billing is `billing_proof.py`. Pilot gate: `docs/PI
 No TMS/marketplace/booking-as-contract, no autonomous negotiation/pricing,
 no accounting ledger (provider-hosted invoices only), no image OCR yet.
 
-## 12. Honest review (2026-10-08)
-Full findings: `docs/REVIEW.md`. Headline gaps: decorative global search; no
-forgot-password/invite UI; no quote PDF export; no delivered notifications; demo-grade
-role switch (approval gates UI-deep until Phase A); quotations unlinked to agents;
-guideline display-only; quote form ignores saved rules; read-only inbox; one-way
-tracking; no drill-downs/customer-360/audit timeline UI; no public rate limits,
-PII redaction, or retention path; live provider secrets pending.
+## 12. Honest review (2026-10-08; resolved 2026-10-12 in v4 unless noted)
+Full findings: `docs/REVIEW.md`. Headline gaps: decorative global search ✅
+(now searches situations); no forgot-password/invite UI ✅ (both shipped
+earlier); no quote PDF export ⬜ (still open); no delivered notifications 🔶
+(worker sends reminders; in-app notification center still open); demo-grade
+role switch ✅ (real role badge + gated Approve); quotations unlinked to agents
+✅ (agent link + dropdown picker); guideline display-only ✅ (estimate actions
+on every page); quote form ignores saved rules 🔶 (rule dropdown still uses
+kind/value inputs — rules apply at pricing time); read-only inbox ✅ (reply
+box shippable via new endpoint); one-way tracking 🔶 (auto-lookup added;
+customer replies still one-way); no drill-downs/customer-360/audit timeline UI
+🔶 (nav badges + filters added; customer-360 still open); no public rate limits
+✅, PII redaction ✅, retention path ✅ (Phase A, shipped earlier); live
+provider secrets pending (unchanged — operator step).
 
-## 13. Roadmap to standard (from review)
-Full plan: `docs/PLAN_NEXT.md`. **A** trust & abuse (real roles, password reset,
-invites, rate limits, PII/retention) → **B** interconnections (agent_id link +
-scorecards, outlier flags, rule dropdown, inbox reply, two-way tracking,
-drill-downs + search, customer 360, WhatsApp inbound) → **C** value features
-(PDF export, delivered reminders, SLAs, dedupe, templates, FX, customer API
-keys) → **D** readiness (live secrets, verified deploy, backups, mobile/a11y).
+## 13. Roadmap to standard (from review; v4 progress noted)
+Full plan: `docs/PLAN_NEXT.md`. **A** trust & abuse ✅ shipped (real roles,
+password reset, invites, rate limits, PII/retention) → **B** interconnections
+🔶 mostly shipped (agent_id link ✅ + dropdown picker ✅, rule dropdown 🔶,
+inbox reply ✅, track auto-lookup ✅, drill-downs + search ✅, customer 360
+⬜, WhatsApp inbound ⬜; outlier flags + scorecards ⬜) → **C** value features
+⬜ (PDF export, delivered reminders, SLAs, dedupe, templates, FX, customer API
+keys) → **D** readiness 🔶 (verified deploy ⬜, backups ⬜, mobile/a11y 🔶 —
+screen-reader + keyboard pass done, mobile layout still basic).
 Each phase ships independently with tests + live proof; §10 rows flip to ✅.

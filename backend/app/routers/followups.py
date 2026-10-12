@@ -57,6 +57,18 @@ async def list_followups(user: CurrentUser = Depends(get_current_user), s: Async
              "due_at": r.due_at.isoformat() if r.due_at else None} for r in rows]
 
 
+@router.post("/follow-ups/{fid}/done")
+async def complete_followup(fid: str, user: CurrentUser = Depends(get_current_user),
+                            s: AsyncSession = Depends(_session)):
+    row = ((await s.execute(select(FollowUp).where(
+        FollowUp.id == fid, FollowUp.org_id == user.org_id))).scalars().first())
+    if not row:
+        raise HTTPException(status_code=404, detail="Not found")
+    row.status = "Done"
+    await s.commit()
+    return {"id": row.id, "status": row.status}
+
+
 @router.post("/situations/{sid}/outcome")
 async def record_outcome(
     sid: str, payload: OutcomeIn, user: CurrentUser = Depends(get_current_user), s: AsyncSession = Depends(_session)

@@ -16,14 +16,37 @@ async function authHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${token}`, "X-Org-Id": orgId, "X-Role": "CSR" };
 }
 
+export function friendlyError(raw: string): string {
+  const msg = raw || "Request failed";
+  if (/^401:/.test(msg)) {
+    if (/X-Org-Id|Bearer/i.test(msg)) return "Not signed in — please sign in again.";
+    return "Your session expired — please sign in again.";
+  }
+  if (/^402:/.test(msg)) return "Trial expired — open Billing to subscribe and keep working.";
+  if (/^403:/.test(msg)) {
+    if (/role|Forbidden/i.test(msg)) return "Your role can't do that — ask an Owner or Manager.";
+    return "Wrong workspace — switch companies in the top bar and retry.";
+  }
+  if (/^404:/.test(msg)) return "Not found in your workspace — it may belong to another company.";
+  if (/^409:/.test(msg)) return msg.replace(/^409:\s*/, "") || "That action isn't allowed right now.";
+  if (/^422:/.test(msg)) return msg.replace(/^422:\s*/, "") || "Something's missing — check the form and retry.";
+  if (/No active organization/i.test(msg))
+    return "No active company — pick one in the top bar or create it from Signup.";
+  if (/Failed to fetch|Unable to connect|NetworkError/i.test(msg))
+    return "Can't reach the server — is the API running on :8000?";
+  return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(await authHeaders()), ...(init?.headers || {}) },
+  }).catch(() => {
+    throw new Error("Can't reach the server — is the API running on :8000?");
   });
   if (!res.ok) {
     const detail = await res.text();
-    throw new Error(`${res.status}: ${detail.slice(0, 200)}`);
+    throw new Error(friendlyError(`${res.status}: ${detail.slice(0, 200)}`));
   }
   return (await res.json()) as T;
 }
@@ -33,10 +56,12 @@ export async function apiForm<T>(path: string, form: FormData): Promise<T> {
     method: "POST",
     headers: await authHeaders(),
     body: form,
+  }).catch(() => {
+    throw new Error("Can't reach the server — is the API running on :8000?");
   });
   if (!res.ok) {
     const detail = await res.text();
-    throw new Error(`${res.status}: ${detail.slice(0, 200)}`);
+    throw new Error(friendlyError(`${res.status}: ${detail.slice(0, 200)}`));
   }
   return (await res.json()) as T;
 }

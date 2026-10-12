@@ -1,5 +1,6 @@
 """Inbox — conversations + messages, org-scoped, newest first."""
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,11 @@ from ..models import Conversation, Message, Situation
 from .intake import _session
 
 router = APIRouter()
+
+
+class MessageIn(BaseModel):
+    body: str
+    channel: str = "web"
 
 
 @router.get("/conversations")
@@ -32,6 +38,23 @@ async def list_messages(cid: str, user: CurrentUser = Depends(get_current_user),
             .scalars().all())
     return [{"id": m.id, "channel": m.channel, "body": m.body,
              "attachments": m.attachments} for m in rows]
+
+
+@router.post("/conversations/{cid}/messages")
+async def post_message(cid: str, payload: MessageIn, user: CurrentUser = Depends(get_current_user),
+                       s: AsyncSession = Depends(_session)):
+    conv = ((await s.execute(select(Conversation).where(
+        Conversation.id == cid, Conversation.org_id == user.org_id))).scalars().first())
+    if not conv:
+        raise HTTPException(status_code=404, detail="Not found")
+    body = (payload.body or "").strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="Message body required")
+    m = Message(org_id=user.org_id, conversation_id=cid, channel=payload.channel or "web",
+                body=body[:4000])
+    s.add(m)
+    await s.commit()
+    return {"id": m.id, "conversation_id": cid, "channel": m.channel, "body": m.body}
 
 
 @router.get("/inbox")

@@ -1,6 +1,7 @@
 import "./globals.css";
 import { SessionBar, TrialPill } from "../components/session-bar";
 import { Nav } from "../components/nav";
+import { SearchBox } from "../components/search-box";
 
 export const metadata = { title: "Freight Customer Service Desk", description: "AI workspace for logistics customer service" };
 
@@ -10,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <div className="topbar">
           <b>Freight Customer Service Desk</b>
-          <input placeholder="Search situations, customers, RFQs…" aria-label="Global search" />
+          <SearchBox />
           <TrialPill />
           <SessionBar />
         </div>

@@ -55,7 +55,7 @@ export default function Quote() {
   return (
     <>
       <div className="card">
-        <h2 style={{ fontSize: 16, margin: "4px 0 8px" }}>Search freight rates</h2>
+        <h2 style={{ fontSize: 16, margin: "4px 0 8px" }}>Get quote — search freight rates</h2>
         <p className="muted">Account required — results come from your carriers plus live history.</p>
         {error ? <p className="pill red">{error}</p> : null}
         <form onSubmit={submit} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -88,6 +88,7 @@ export default function Quote() {
       {guide?.options && guide.options.length > 0 ? (
         <Card title={`Carrier options (${guide.options.length}) — from rate history`}>
           <table className="cmp">
+            <caption className="sr-only">Carrier options from rate history</caption>
             <thead>
               <tr>
                 <th>Carrier</th>

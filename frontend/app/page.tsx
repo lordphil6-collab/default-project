@@ -55,6 +55,13 @@ export default function Home() {
 
   return (
     <>
+      {!loading && !error && situations.length === 0 ? (
+        <Card title="Getting started (3 steps)">
+          <p className="muted">1. <a href="/agents">Add your carriers</a> — contracted lines with agent emails for RFQ delivery.</p>
+          <p className="muted">2. <a href="/settings/mailbox">Connect your mailbox</a> — agent replies auto-ingest as quotations.</p>
+          <p className="muted">3. Capture your first enquiry below — it becomes a situation you can price.</p>
+        </Card>
+      ) : null}
       <Card title="Today — What needs attention?">
         {loading && !counts ? (
           <p className="muted">Loading live data…</p>

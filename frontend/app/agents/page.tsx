@@ -101,8 +101,8 @@ export default function Agents() {
           </p>
         </form>
       </Card>
-      <Card title={`Agents (${rows.length})`}>
-        {rows.length === 0 && !error ? <p className="muted">No agents yet — add your first above.</p> : null}
+      <Card title={`Agents — carriers & shipping lines (${rows.length})`}>
+        {rows.length === 0 && !error ? <p className="muted">No carriers yet — add contracted lines above, or load samples to explore. Agent emails enable RFQ delivery + reply matching.</p> : null}
         {rows.map((a) => (
           <div key={a.id} className="card" style={{ marginBottom: 10 }}>
             <p>

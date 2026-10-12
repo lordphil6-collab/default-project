@@ -114,6 +114,10 @@ td.unk { background: #fef9c3; font-weight: 700; }
 .conf3 > div { border-radius: var(--radius-sm); padding: 8px; border: 1px solid var(--slate-200); }
 .swatch { height: 44px; border-radius: var(--radius-sm); border: 1px solid var(--slate-200); }
 :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
 @media (max-width: 1000px) {
   .shell { grid-template-columns: 1fr; }
   .nav { flex-direction: row; flex-wrap: wrap; }

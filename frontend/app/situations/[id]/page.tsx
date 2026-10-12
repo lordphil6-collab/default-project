@@ -29,6 +29,8 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   const [excs, setExcs] = useState<Exception[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [extractBody, setExtractBody] = useState("");
   const [ingest, setIngest] = useState<Record<string, { agent: string; body: string }>>({});
@@ -44,6 +46,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
 
   const refresh = useCallback(async () => {
     setError("");
+    setLoading(true);
     try {
       const [s, r, cq, fu, ex] = await Promise.all([
         api<Situation>(`/situations/${sid}`),
@@ -57,19 +60,34 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
       setCquotes(cq);
       setFups(fu.filter((f) => f.situation_id === sid));
       setExcs(ex.filter((e) => e.situation_id === sid));
-      const qmap: Record<string, Quote[]> = {};
-      for (const rfq of r) {
-        qmap[rfq.id] = await api<Quote[]>(`/rfqs/${rfq.id}/quotations`);
-      }
-      setQuotes(qmap);
+      const entries = await Promise.all(
+        r.map(async (rfq) => [rfq.id, await api<Quote[]>(`/rfqs/${rfq.id}/quotations`)] as const)
+      );
+      setQuotes(Object.fromEntries(entries));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Load failed");
+    } finally {
+      setLoading(false);
     }
   }, [sid]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/auth/role");
+        if (r.ok) setRole(((await r.json()) as { role?: string }).role || null);
+      } catch {
+        setRole(null);
+      }
+    })();
+  }, []);
+
+  const canApprove = role === "Manager" || role === "Owner";
+  const allQuotes = Object.values(quotes).flat();
 
   async function act(key: string, label: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -88,8 +106,9 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
   return (
     <>
       <Card title={`Situation ${sid.slice(0, 8)}`}>
-        {error ? <p className="pill red">{error}</p> : null}
-        {notice ? <p className="pill green">{notice}</p> : null}
+        {error ? <p className="pill red" role="alert">{error}</p> : null}
+        {notice ? <p className="pill green" role="status">{notice}</p> : null}
+        {loading && !sit ? <p className="muted">Loading situation…</p> : null}
         {!sit ? (
           <p className="muted">Loading…</p>
         ) : (
@@ -195,6 +214,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                     setError("Tick at least one recommended agent first.");
                     return;
                   }
+                  if (!window.confirm(`Send RFQ ${rfq.id.slice(0, 8)} to ${ids.length} agent(s)?`)) return;
                   act(`dist-${rfq.id}`, `RFQ sent to ${ids.length} agent(s)`, async () => {
                     await api(`/rfqs/${rfq.id}/recipients`, { method: "POST", body: JSON.stringify({ agent_ids: ids }) });
                     await api(`/rfqs/${rfq.id}/send`, { method: "POST" });
@@ -224,6 +244,7 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
                   {compare[rfq.id].recommendation ? ` — ${compare[rfq.id].recommendation!.reasoning}` : " — no comparable quotes yet"}
                 </p>
                 <table className="cmp">
+                  <caption className="sr-only">Agent comparison ranked by all-in total</caption>
                   <thead>
                     <tr>
                       <th>#</th>
@@ -306,7 +327,22 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
 
       <Card title={`Customer quotes (${cquotes.length})`}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <input aria-label="Agent quotation id" placeholder="agent quote id (8 chars)" style={{ width: 200 }} value={markup.quotation_id} onChange={(e) => setMarkup((m) => ({ ...m, quotation_id: e.target.value }))} />
+          {allQuotes.length > 0 ? (
+            <select
+              aria-label="Agent quotation"
+              value={markup.quotation_id}
+              onChange={(e) => setMarkup((m) => ({ ...m, quotation_id: e.target.value }))}
+            >
+              <option value="">Pick an agent quotation…</option>
+              {allQuotes.map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.agent} — {q.id.slice(0, 8)}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="muted">Ingest an agent quotation above first.</span>
+          )}
           <select aria-label="Markup kind" value={markup.kind} onChange={(e) => setMarkup((m) => ({ ...m, kind: e.target.value }))}>
             <option value="percent">percent %</option>
             <option value="fixed">fixed $</option>
@@ -317,9 +353,9 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
             busy={busy === "price"}
             secondary
             onClick={() => {
-              const qid = Object.values(quotes).flat().find((q) => q.id.startsWith(markup.quotation_id))?.id;
+              const qid = allQuotes.find((q) => q.id === markup.quotation_id)?.id;
               if (!qid) {
-                setError("Pick an agent quotation id shown above (first 8 chars).");
+                setError("Pick an agent quotation from the dropdown first.");
                 return;
               }
               act("price", "Customer quote priced", () =>
@@ -337,10 +373,21 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
           <p key={q.id}>
             <b className="mono">${q.final_price.toFixed(2)}</b> (cost {q.agent_total.toFixed(2)} + {q.markup_amount.toFixed(2)}){" "}
             <StatusPill tone={q.status === "Sent" ? "green" : "amber"}>{q.status}</StatusPill>{" "}
-            <ActionButton busy={busy === `ap-${q.id}`} secondary onClick={() => act(`ap-${q.id}`, "Quote approved — needs Manager role", () => api(`/customer-quotes/${q.id}/approve`, { method: "POST" }))}>
-              Approve (Manager)
-            </ActionButton>{" "}
-            <ActionButton busy={busy === `se-${q.id}`} secondary onClick={() => act(`se-${q.id}`, `Quote sent via ${sendChannel}`, () => api(`/customer-quotes/${q.id}/send`, { method: "POST", body: JSON.stringify({ channel: sendChannel, to: sendTo }) }))}>
+            {canApprove ? (
+              <ActionButton busy={busy === `ap-${q.id}`} secondary onClick={() => act(`ap-${q.id}`, "Quote approved", () => api(`/customer-quotes/${q.id}/approve`, { method: "POST" }))}>
+                Approve (Manager)
+              </ActionButton>
+            ) : (
+              <span className="muted" title={role ? `Your role: ${role} — approval needs Manager or Owner` : "Sign in to approve"}>Approve needs Manager+{role ? ` (you: ${role})` : ""}</span>
+            )}{" "}
+            <ActionButton busy={busy === `se-${q.id}`} secondary onClick={() => {
+              if (q.status !== "Approved") {
+                setError("Approve the quote first — sending is blocked until then.");
+                return;
+              }
+              if (!window.confirm(`Send quote $${q.final_price.toFixed(2)} via ${sendChannel}?`)) return;
+              act(`se-${q.id}`, `Quote sent via ${sendChannel}`, () => api(`/customer-quotes/${q.id}/send`, { method: "POST", body: JSON.stringify({ channel: sendChannel, to: sendTo }) }));
+            }}>
               Send
             </ActionButton>
           </p>
@@ -368,7 +415,12 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
         </div>
         {fups.map((f) => (
           <p key={f.id} className="muted">
-            {f.due_at ? f.due_at.slice(0, 10) : "no due"} — {f.bucket} — {f.status}
+            {f.due_at ? f.due_at.slice(0, 10) : "no due"} — {f.bucket} — {f.status}{" "}
+            {f.status !== "Done" ? (
+              <ActionButton busy={busy === `fd-${f.id}`} secondary onClick={() => act(`fd-${f.id}`, "Follow-up done", () => api(`/follow-ups/${f.id}/done`, { method: "POST" }))}>
+                Mark done
+              </ActionButton>
+            ) : null}
           </p>
         ))}
         <p>
@@ -377,7 +429,10 @@ export default function SituationDetail({ params }: { params: { id: string } }) 
               <ActionButton
                 busy={busy === `oc-${o}`}
                 secondary
-                onClick={() => act(`oc-${o}`, `Outcome recorded: ${o}`, () => api(`/situations/${sid}/outcome`, { method: "POST", body: JSON.stringify({ outcome: o }) }))}
+                onClick={() => {
+                  if (!window.confirm(`Record outcome “${o}” for this situation?`)) return;
+                  act(`oc-${o}`, `Outcome recorded: ${o}`, () => api(`/situations/${sid}/outcome`, { method: "POST", body: JSON.stringify({ outcome: o }) }));
+                }}
               >
                 {o}
               </ActionButton>

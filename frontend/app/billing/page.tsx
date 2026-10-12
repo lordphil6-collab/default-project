@@ -61,6 +61,7 @@ export default function Billing() {
         </p>
       </Card>
       <Card title={`Plans (${plans.length})`}>
+        {plans.length === 0 && !error ? <p className="muted">No plans found — run the plan seeder on the server, then subscribe here to activate your trial.</p> : null}
         {plans.map((p) => (
           <p key={p.id}>
             <b>{p.name}</b> <span className="mono">${p.monthly_price}/mo</span>{" "}

@@ -24,8 +24,23 @@ async function memberRole(organizationId: string, userId: string): Promise<strin
   return mapRole(rows[0]?.role);
 }
 
+/** App role (Owner/Manager/CSR) for the active org, or null when signed out. */
+export async function getActiveRole(): Promise<{ role: string; orgId: string } | null> {
+  const { headers } = await import("next/headers");
+  try {
+    const session = await auth.api.getSession({ headers: await headers() });
+    const orgId = (session?.session as { activeOrganizationId?: string } | undefined)?.activeOrganizationId;
+    const userId = session?.user?.id;
+    if (!orgId || !userId) return null;
+    return { role: await memberRole(orgId, userId), orgId };
+  } catch {
+    return null;
+  }
+}
+
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  // Must match the port Next actually serves (canonical local stack: 3002).
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3002",
   secret: process.env.BETTER_AUTH_SECRET || "dev-only-change-me",
   database: drizzleAdapter(db, { provider: "pg" }),
   emailAndPassword: {
@@ -51,7 +66,7 @@ export const auth = betterAuth({
   plugins: [
     organization({
       sendInvitationEmail: async ({ email, invitation }) => {
-        const url = `${process.env.BETTER_AUTH_URL || "http://localhost:3000"}/accept?invitationId=${invitation.id}`;
+        const url = `${process.env.BETTER_AUTH_URL || "http://localhost:3002"}/accept?invitationId=${invitation.id}`;
         await sendAppEmail(email, "You're invited",
           `<p>You were invited as <b>${invitation.role}</b>. Accept here:</p><p><a href="${url}">${url}</a></p>`);
       },

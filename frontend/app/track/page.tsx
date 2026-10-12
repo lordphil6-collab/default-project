@@ -24,8 +24,11 @@ export default function Track() {
   useEffect(() => {
     const m = /[?&]token=([^&]+)/.exec(window.location.search);
     if (m) {
-      setToken(decodeURIComponent(m[1]));
+      const t = decodeURIComponent(m[1]);
+      setToken(t);
+      lookup(t); // shared links resolve immediately — no extra click
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function lookup(t: string) {
@@ -67,7 +70,7 @@ export default function Track() {
           <div className="timeline">
             {STAGES.map((s, i) => (
               <div key={s} style={{ opacity: i <= stageIdx(data.outcome || data.status) ? 1 : 0.4 }}>
-                {i <= stageIdx(data.outcome || data.status) ? "●" : "○"} {s}
+                <span aria-hidden="true">{i <= stageIdx(data.outcome || data.status) ? "●" : "○"}</span> {s}
               </div>
             ))}
           </div>

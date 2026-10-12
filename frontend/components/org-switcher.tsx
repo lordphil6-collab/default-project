@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 
 type Org = { id: string; name: string };
@@ -8,6 +9,7 @@ type Org = { id: string; name: string };
 // create one. Without an active org every API call fails, so this must never
 // be a dead end.
 export function OrgSwitcher() {
+  const router = useRouter();
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [error, setError] = useState("");
@@ -37,21 +39,21 @@ export function OrgSwitcher() {
     setError("");
     const res = await authClient.organization.setActive({ organizationId: id });
     if (res.error) setError(res.error.message || "Failed");
-    else window.location.reload();
+    else router.refresh();
   }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     try {
-      const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${Date.now().toString(36)}`;
-      const res = await authClient.organization.create({ name, slug });
+      const slug = `${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "company"}-${Date.now().toString(36)}`;
+      const res = await authClient.organization.create({ name: name.trim(), slug });
       if (res.error) throw new Error(res.error.message || "Failed");
       const id = (res.data as { id?: string } | null)?.id;
       if (!id) throw new Error("No organization id returned");
       const active = await authClient.organization.setActive({ organizationId: id });
       if (active.error) throw new Error(active.error.message || "Failed");
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {

@@ -62,6 +62,7 @@ export default function Pricing() {
         </form>
       </Card>
       <Card title={`Rules (${rows.length})`}>
+        {rows.length === 0 && !error ? <p className="muted">No rules yet — save one above. Quotes without a rule use the 12% default from the situation page.</p> : null}
         {rows.map((r) => (
           <p key={r.id} className="muted">
             <b>{r.name}</b> — {r.kind} {r.value}

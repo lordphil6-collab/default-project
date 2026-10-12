@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "../../lib/auth-client";
 
 export default function Login() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -12,7 +14,10 @@ export default function Login() {
     setError("");
     const res = await authClient.signIn.email({ email, password });
     if (res.error) setError(res.error.message || "Sign in failed");
-    else window.location.href = "/";
+    else {
+      router.push("/");
+      router.refresh();
+    }
   }
 
   return (

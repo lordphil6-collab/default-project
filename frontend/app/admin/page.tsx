@@ -31,6 +31,7 @@ export default function Admin() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!window.confirm(`Set ${form.org_id.slice(0, 8)} to “${form.status}”?`)) return;
     setBusy(true);
     setError("");
     setNotice("");
